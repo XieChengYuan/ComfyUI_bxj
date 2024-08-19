@@ -1,7 +1,7 @@
 from server import PromptServer
 
-class cpm:
-    CATEGORY = "sd-cpm"
+class sdCpm:
+    CATEGORY = "sdCpm"
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -40,6 +40,7 @@ class cpm:
     RETURN_TYPES = () 
 
 class cpm_textInput:
+    CATEGORY = "sdCpm"
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -47,11 +48,12 @@ class cpm_textInput:
                 "text": ("STRING", {"default": "", "multiline": True, "placeholder": "输入文本"}),
             }
         }
-
     RETURN_TYPES = ("STRING",)
     FUNCTION = "getText"
-    CATEGORY = "sd-cpm"
+   
 
     @staticmethod
     def getText(text):
+        print('hhhhhh')
+        PromptServer.instance.send_sync("sdCpm.cpm_textInput.textmessage",{"message":text})
         return (text,)

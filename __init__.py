@@ -1,12 +1,12 @@
-from .cpm import *
+from .sdCpm import *
     
 WEB_DIRECTORY = "./js"
 NODE_CLASS_MAPPINGS = { 
-    "cpm": cpm,
+    "sdCpm": sdCpm,
     "cpm_textInput":cpm_textInput,
     }
 NODE_DISPLAY_NAME_MAPPINGS = {
-     "cpm": "sd-cpm",
+     "sdCpm": "sdCpm",
      "cpm_textInput":"cpm_textInput"
 }
 
