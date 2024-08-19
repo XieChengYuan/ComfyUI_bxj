@@ -1,4 +1,7 @@
+from server import PromptServer
+
 class cpm:
+    CATEGORY = "sd-cpm"
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -34,8 +37,8 @@ class cpm:
              "hidden": { "node_id": "UNIQUE_ID" }  # Add the hidden key
         }
 
-    RETURN_TYPES = ()
-    CATEGORY = "sd-cpm"
+    RETURN_TYPES = () 
+
 class cpm_textInput:
     @classmethod
     def INPUT_TYPES(cls):
