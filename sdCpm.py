@@ -1,5 +1,3 @@
-from server import PromptServer
-
 class sdCpm:
     CATEGORY = "sdCpm"
     @classmethod
@@ -36,7 +34,6 @@ class sdCpm:
             },
              "hidden": { "node_id": "UNIQUE_ID" }  # Add the hidden key
         }
-
     RETURN_TYPES = () 
 
 class cpm_textInput:
@@ -54,6 +51,4 @@ class cpm_textInput:
 
     @staticmethod
     def getText(text):
-        print('hhhhhh')
-        PromptServer.instance.send_sync("sdCpm.cpm_textInput.textmessage",{"message":text})
         return (text,)
