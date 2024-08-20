@@ -1,9 +1,10 @@
 import { app } from '../../../scripts/app.js'
+import {api} from '../../../scripts/api.js'
 import { $el } from '../../../scripts/ui.js'
 
 let isLoading = false;
 const TEST_UID = "66c1f5419d9f915ad22bf864";
-const UPLOAD_PRODUCT_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn/kaji-upload-file/uploadProduct";
+const END_POITN_URL = "/kaji-upload-file/uploadProduct";
 function createButtonWithClickHandler(buttonClass, buttonText, clickHandler) {
     return $el(`button.${buttonClass}`, {
         textContent: buttonText,
@@ -39,7 +40,7 @@ async function handleDeployButtonClick(app) {
     const uploadData = formatPostData(graphPrompt);
     if (uploadData) {
         try {
-            const res = await request(UPLOAD_PRODUCT_URL, uploadData);
+            const res = await request(END_POITN_URL, uploadData);
             if (res && res.data && res.data.success) {
                 showMsgDialog('上传成功');
                 console.log('上传返回的数据:', res.data);
@@ -54,6 +55,30 @@ async function handleDeployButtonClick(app) {
     } else {
         showMsgDialog('生成上传数据失败，请检查工作流是否正常。');
         // console.error('获取上传数据失败:', uploadData);
+    }
+}
+
+async function request(path, uploadData) {
+    try {
+        const response = await api.fetchApi(path, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                uploadData
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const resdata = await response.json();
+        return resdata;
+
+    } catch (error) {
+        console.error('Request failed:', error);
+        return null; 
     }
 }
 

@@ -2,6 +2,8 @@ import sys
 import os
 import subprocess
 
+DEBUG = True
+
 def get_project_root():
     """Returns the root directory of the project."""
     return os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +35,6 @@ def install_requirements():
         raise RuntimeError(f"Failed to install packages from {requirements_file}.")
     else:
         print("All required packages installed successfully.")
-
-print("安装依赖测试")
+if DEBUG:
+    print("**********comfyui_cpm_setup**************")
 install_requirements()

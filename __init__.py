@@ -1,5 +1,6 @@
 from .sdCpm import *
 from .setup import *
+from .api import *
 
 extension_dirs = [
     "js",
