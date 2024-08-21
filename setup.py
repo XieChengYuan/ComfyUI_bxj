@@ -8,7 +8,7 @@ def get_project_root():
     """Returns the root directory of the project."""
     return os.path.dirname(os.path.abspath(__file__))
 
-def build_pip_install_cmd(args):
+def exe_cmd(args):
     """
     Builds the pip install command based on the Python executable.
     Adjusts the command for embedded Python environments if necessary.
@@ -28,7 +28,7 @@ def install_requirements():
     if not os.path.isfile(requirements_file):
         raise FileNotFoundError(f"{requirements_file} does not exist.")
     
-    pip_cmd = build_pip_install_cmd(['-r', 'requirements.txt'])
+    pip_cmd = exe_cmd(['-r', 'requirements.txt'])
     result = subprocess.run(pip_cmd, cwd=project_root)
     
     if result.returncode != 0:

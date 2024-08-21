@@ -25,10 +25,10 @@ function formatPostData(graphPrompt){
     console.log("cpm_input_info:",cpm_input_info);
     if(cpm_input_info)
     {
-        pd.image = pp[cpm_input_info['product_img1(optional)'][0]].inputs.image;
+        pd.imageBase = pp[cpm_input_info['product_img1(optional)'][0]].inputs.image;
         pd.title = cpm_input_info['product-title'];
-        pd.desc = cpm_input_info['product-desc'];
-        pd.uid = TEST_UID;
+        pd.description = cpm_input_info['product-desc'];
+        pd.user_id = TEST_UID;
     }
     console.log("pd:",pd);
     return pd;
