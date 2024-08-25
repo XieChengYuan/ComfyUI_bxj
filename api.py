@@ -15,11 +15,12 @@ import websockets
 
 DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
-END_POINT_URL = "/kaji-upload-file/uploadProduct"
+END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
+END_POINT_URL2 = "/get-ws-address/getWsAddress"
 TEST_UID = "66c1f5419d9f915ad22bf864"
 RECONNECT_DELAY = 5  
 MAX_RECONNECT_ATTEMPTS = 3 
-
+HEART_INTERVAL = 10
 
 def is_image_file(image_path):
     if not os.path.isfile(image_path):
@@ -101,17 +102,22 @@ def generate_unique_hash(mac_address, port):
 async def send_heartbeat(websocket):
     while True:
         try:
+            # 发送 ping 消息
             heartbeat_message = json.dumps({"type": "ping"})
             await websocket.send(heartbeat_message)
             print("Sent heartbeat")
-        except Exception as e:
-            print(f"Error sending heartbeat: {e}")
-            break
-        await asyncio.sleep(60) 
 
-async def handle_websocket(uri, reconnect_attempts=0):
+        except Exception as e:
+            print(f"Error sending heartbeat or no response: {e}")
+            break  # 连接失效，退出循环
+
+        await asyncio.sleep(HEART_INTERVAL)
+
+async def handle_websocket(reconnect_attempts=0):
     try:
+        uri = await get_wss_server_url()  # 每次连接前获取新的 WebSocket URL
         async with websockets.connect(uri) as websocket:
+            reconnect_attempts = 0
             print(f"Connected to WebSocket server at {uri}")
             initial_message = {
             "type": "initial_request",
@@ -128,28 +134,35 @@ async def handle_websocket(uri, reconnect_attempts=0):
             asyncio.create_task(send_heartbeat(websocket))
             
             # 循环处理接收到的每一条消息
-            async for message in websocket:
-                print(f"Received message from server: {message}")
-                await process_server_message(message)
-
-    except websockets.ConnectionClosed as e:
-        print(f"WebSocket connection closed with code {e.code}: {e.reason}")
+            while True:
+                try:
+                    message = await asyncio.wait_for(websocket.recv(), timeout=HEART_INTERVAL*5)
+                    print(f"Received message from server: {message}")
+                    await process_server_message(message)
+                except asyncio.TimeoutError:
+                    print("No message received within the timeout period. Reconnecting...")
+                    raise
+                except asyncio.CancelledError:
+                    print("Task was cancelled during recv.")
+                    break
+    except websockets.ConnectionClosedOK as e:
+        print(f"WebSocket connection closed normally with code {e.code}: {e.reason}")
+    except websockets.ConnectionClosedError as e:
+        print(f"WebSocket connection closed with error, code {e.code}: {e.reason}")
     except Exception as e:
         print(f"WebSocket error: {e}")
     
-    # 执行断开连接后的逻辑，例如资源清理或通知客户端
-    await on_websocket_disconnection()
-
+     # 执行断开连接后的逻辑
+        await on_websocket_disconnection(websocket)
     # 判断是否已达到最大重连次数
     if reconnect_attempts < MAX_RECONNECT_ATTEMPTS:
         print(f"Attempting to reconnect in {RECONNECT_DELAY} seconds... (Attempt {reconnect_attempts + 1}/{MAX_RECONNECT_ATTEMPTS})")
         await asyncio.sleep(RECONNECT_DELAY)
-        await handle_websocket(uri, reconnect_attempts + 1)
+        await handle_websocket(reconnect_attempts + 1)
     else:
         print(f"Max reconnect attempts reached ({MAX_RECONNECT_ATTEMPTS}). Giving up on reconnecting.")
 
 async def process_server_message(message):
-    # 在这里处理从服务器接收到的消息
     print(f"Processing server message: {message}")
     try:
         message_data = json.loads(message)
@@ -160,38 +173,45 @@ async def process_server_message(message):
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
 
-async def on_websocket_disconnection():
-    # 在这里处理 WebSocket 断开时的逻辑
+async def on_websocket_disconnection(websocket):
     print("WebSocket connection has been closed.")
-    # 例如，重连、清理资源、通知客户端等
+    await websocket.close()
 
-def start_websocket_thread(uri):
+def start_websocket_thread():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(handle_websocket(uri))
+    loop.run_until_complete(handle_websocket())
 
-@server.PromptServer.instance.routes.post(END_POINT_URL)
+async def get_wss_server_url():
+    async with aiohttp.ClientSession() as session:
+        # 假设有一个函数或请求来获取新的 WebSocket 连接地址
+        async with session.post(BASE_URL + END_POINT_URL2,json={}) as response:
+            try:
+                res = await response.json()
+                wss_server_url = res.get('data')
+                if not wss_server_url:
+                    raise Exception("Failed to retrieve WebSocket server URL")
+                return wss_server_url
+            except json.JSONDecodeError:
+                    return web.Response(status=response.status, text="Invalid JSON response2")   
+
+@server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
         oldData = jsonData.get('uploadData')
         newData = reformat(oldData)
         if newData:
-            async with session.post(BASE_URL + END_POINT_URL, json=newData) as response:
+            async with session.post(BASE_URL + END_POINT_URL1, json=newData) as response:
                 try:
                     res = await response.text()
                     res_js = json.loads(res)
                     if DEBUG:
-                        print("res_js", res_js)
-                    wss_server_url = res_js.get('data', {}).get('wss_server_url')          
-                    if wss_server_url:
-                        threading.Thread(target=start_websocket_thread, args=(wss_server_url,), daemon=True).start()
-                    else:
-                        print("WebSocket server URL not found in response")
-                    
+                        print("res_js", res_js)      
+                    threading.Thread(target=start_websocket_thread, args=(), daemon=True).start()
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
-                    return web.Response(status=response.status, text="Invalid JSON response")
+                    return web.Response(status=response.status, text="Invalid JSON response1")
         else:
             return web.Response(status=400, text="uploadData is missing")
 
