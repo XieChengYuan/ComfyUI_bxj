@@ -138,7 +138,7 @@ async def handle_websocket(reconnect_attempts=0):
                 try:
                     message = await asyncio.wait_for(websocket.recv(), timeout=HEART_INTERVAL*5)
                     print(f"Received message from server: {message}")
-                    await process_server_message(message)
+                    await process_server_message(websocket,message)
                 except asyncio.TimeoutError:
                     print("No message received within the timeout period. Reconnecting...")
                     raise
@@ -151,9 +151,12 @@ async def handle_websocket(reconnect_attempts=0):
         print(f"WebSocket connection closed with error, code {e.code}: {e.reason}")
     except Exception as e:
         print(f"WebSocket error: {e}")
-    
-     # 执行断开连接后的逻辑
-        await on_websocket_disconnection(websocket)
+    finally:
+    # 确保 websocket 对象在关闭连接之前被正确创建
+        if websocket is not None and websocket.open:
+            await on_websocket_disconnection(websocket)
+        else:
+            print("WebSocket object was not created successfully; skipping disconnection.")
     # 判断是否已达到最大重连次数
     if reconnect_attempts < MAX_RECONNECT_ATTEMPTS:
         print(f"Attempting to reconnect in {RECONNECT_DELAY} seconds... (Attempt {reconnect_attempts + 1}/{MAX_RECONNECT_ATTEMPTS})")
@@ -162,20 +165,47 @@ async def handle_websocket(reconnect_attempts=0):
     else:
         print(f"Max reconnect attempts reached ({MAX_RECONNECT_ATTEMPTS}). Giving up on reconnecting.")
 
-async def process_server_message(message):
+async def process_server_message(websocket, message):
     print(f"Processing server message: {message}")
+    
     try:
+        # 尝试将接收到的消息解析为 JSON 对象
         message_data = json.loads(message)
-        if message_data.get('type') == 'pong':
+        
+        message_type = message_data.get('type')
+        data = message_data.get('data', {})
+
+        if message_type == 'pong':
             print("连接正常")
-        elif message_data.get('type') == 'generate_process':
+
+        elif message_type == 'generate_process':
             print("收到生图消息")
+
+            # 构建生图进度消息
+            pro_message = {
+                "type": "generate_process",
+                "data": {
+                    "user_id": data.get("user_id"),
+                    "clientType": "plugin"
+                }
+            }
+
+            try:
+                # 发送生图进度消息
+                await websocket.send(json.dumps(pro_message))
+                print("Progress message sent successfully.")
+            except Exception as e:
+                print(f"Failed to send progress message: {e}")
+
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
+    except Exception as e:
+        print(f"An error occurred while processing the message: {e}")
 
 async def on_websocket_disconnection(websocket):
-    print("WebSocket connection has been closed.")
-    await websocket.close()
+    if websocket is not None:
+        await websocket.close()
+        print("WebSocket connection has been closed.")
 
 def start_websocket_thread():
     loop = asyncio.new_event_loop()
@@ -184,7 +214,6 @@ def start_websocket_thread():
 
 async def get_wss_server_url():
     async with aiohttp.ClientSession() as session:
-        # 假设有一个函数或请求来获取新的 WebSocket 连接地址
         async with session.post(BASE_URL + END_POINT_URL2,json={}) as response:
             try:
                 res = await response.json()
