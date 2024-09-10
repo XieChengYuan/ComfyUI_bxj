@@ -12,6 +12,10 @@ function createButtonWithClickHandler(buttonClass, buttonText, clickHandler) {
     });
 }
 
+function generateUniqueId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
 function formatPostData(graphPrompt){
     const pp = graphPrompt.output;
     let pd = {};
@@ -29,6 +33,7 @@ function formatPostData(graphPrompt){
         pd.title = cpm_input_info['product-title'];
         pd.description = cpm_input_info['product-desc'];
         pd.user_id = TEST_UID;
+        pd.uniqueid = generateUniqueId(); // 添加这行
     }
     console.log("pd:",pd);
     return pd;

@@ -28,9 +28,15 @@ TEST_UID = "66c1f5419d9f915ad22bf864"
 wss_c1 = None
 RECONNECT_DELAY = 5  
 MAX_RECONNECT_ATTEMPTS = 3 
-HEART_INTERVAL = 10
+HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 task_status = {}
+
+def get_comfyui_address():
+    args = parse_args()
+    address = get_address_from_args(args)
+    port = parse_port_from_args(args)
+    return f"http://{address}:{port}"
 
 class ManagedThreadPoolExecutor(ThreadPoolExecutor):
     def __init__(self, max_workers=None, thread_name_prefix=''):
@@ -240,22 +246,6 @@ async def process_server_message(websocket, message):
             print("收到生图消息",data)
             deal_recv_generate_data(data)
 
-            # 构建生图进度消息
-            pro_message = {
-                "type": "generate_process",
-                "data": {
-                    "user_id": data.get("user_id"),
-                    "clientType": "plugin"
-                }
-            }
-
-            try:
-                # 发送生图进度消息
-                await websocket.send(json.dumps(pro_message))
-                print("Progress message sent successfully.")
-            except Exception as e:
-                print(f"Failed to send progress message: {e}")
-
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
     except Exception as e:
@@ -290,6 +280,10 @@ async def kaji_r(req):
         oldData = jsonData.get('uploadData')
         newData = reformat(oldData)
         if newData:
+            uniqueid = newData.get('uniqueid')  # 从上传数据中提取uniqueid
+            if uniqueid:
+                # 保存工作流数据
+                save_workflow(uniqueid, newData)
             async with session.post(BASE_URL + END_POINT_URL1, json=newData) as response:
                 try:
                     res = await response.text()
@@ -302,6 +296,18 @@ async def kaji_r(req):
                     return web.Response(status=response.status, text="Invalid JSON response1")
         else:
             return web.Response(status=400, text="uploadData is missing")
+        
+def save_workflow(uniqueid, data):
+    base_path = find_project_root() + 'custom_nodes/ComfyUI_Bxj/config/json/workflow/'
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+    
+    file_path = os.path.join(base_path, f"{uniqueid}.json")
+    
+    with open(file_path, 'w') as f:
+        json.dump(data, f, indent=4)
+    
+    print(f"工作流数据已保存到: {file_path}")
 
 def thread_exe():
     threading.Thread(target=start_websocket_thread, args=(), daemon=True).start()
@@ -326,8 +332,79 @@ def task_generate():
         print(f"An error occurred: {e}")
         traceback.print_exc()  
 
+async def send_prompt_to_comfyui(api_data):
+    async with aiohttp.ClientSession() as session:
+        comfyui_address = get_comfyui_address()
+        async with session.post(f'{comfyui_address}/prompt', json=api_data) as response:
+            if response.status == 200:
+                result = await response.json()
+                prompt_id = result.get('prompt_id')
+                # 等待图像生成完成
+                await wait_for_generation(prompt_id)
+                # 获取生成的图像
+                image_data = await get_generated_image(prompt_id)
+                if image_data:
+                    # 这里可以添加将图像保存到文件或发送到其他服务的逻辑
+                    print(f"图像生成成功,prompt_id: {prompt_id}")
+                    # 例如: await save_image(image_data, f"generated_{prompt_id}.png")
+                else:
+                    print("图像生成失败或未找到")
+            else:
+                print(f"API请求失败,状态码: {response.status}")
+
+async def wait_for_generation(session, prompt_id):
+    comfyui_address = get_comfyui_address()
+    while True:
+        async with session.get(f'{comfyui_address}/history/{prompt_id}') as response:
+            if response.status == 200:
+                history = await response.json()
+                if history[prompt_id]['status']['status'] == 'completed':
+                    break
+        await asyncio.sleep(1)
+
+async def get_generated_image(session, prompt_id):
+    comfyui_address = get_comfyui_address()
+    async with session.get(f'{comfyui_address}/history/{prompt_id}') as response:
+        if response.status == 200:
+            history = await response.json()
+            outputs = history[prompt_id]['outputs']
+            if outputs:
+                # 假设我们只关心第一个输出的第一张图片
+                first_output = outputs[0]
+                if 'images' in first_output and first_output['images']:
+                    image_filename = first_output['images'][0]['filename']
+                    # 获取图像数据
+                    async with session.get(f'{comfyui_address}/view?filename={image_filename}') as img_response:
+                        if img_response.status == 200:
+                            return await img_response.read()
+
 def run_gc_task():
-    pass
+    asyncio.run(run_gc_task_async())
+
+async def run_gc_task_async():
+    try:
+        task = gc_task_queue.get(timeout=10)
+        if task['type'] == 'prompt_queue':
+            prompt = task['data']['prompt']
+            client_id = task['data']['client_id']
+            
+            api_data = {
+                "prompt": prompt,
+                "client_id": client_id
+            }
+            
+            result = await send_prompt_to_comfyui(api_data)
+            if result:
+                print("prompt任务成功完成")
+            else:
+                print("prompt任务执行失败")
+        
+        gc_task_queue.task_done()
+        
+    except queue.Empty:
+        print("队列中没有任务")
+    except Exception as e:
+        print(f"执行任务时发生错误: {e}")
    
 # 任务添加函数（生产者）
 def add_task_to_queue(task_data):
@@ -336,16 +413,16 @@ def add_task_to_queue(task_data):
     print(f"Task added to queue: {task_data}")
 
 def deal_recv_generate_data(recv_data):
-    prompt_id = recv_data['prompt_id']
-    output = get_output(prompt_id + '.json')
-    workflow = get_workflow(prompt_id + '.json')
+    uniqueid = recv_data['uniqueid']
+    output = get_output(uniqueid + '.json')
+    workflow = get_workflow(uniqueid + '.json')
     if output:
             executor.submit(run_prompt_task, output, workflow)
     else:
         add_task_to_queue({
             "type": "prompt_error",
             "data": {
-                'prompt_id': prompt_id,
+                'uniqueid': uniqueid,
                 'msg': '作品工作流找不到了',
                 'error_code':1
             }
@@ -355,8 +432,26 @@ def run_prompt_task(output,workflow):
     return asyncio.run(pre_process_data(output,workflow))
 
 async def pre_process_data(output,workflow):
-    pass
-
+   try:
+        # 合并输出和工作流数据
+        prompt = {**output, **workflow}
+        # 生成唯一的客户端ID
+        client_id = str(uuid.uuid4())
+        # 准备任务数据
+        task_data = {
+            "type": "prpmpt_queue",
+            "data": {
+                "client_id": client_id,
+                "prompt": prompt 
+            }
+        }
+        # 将任务添加到队列
+        add_task_to_queue(task_data)
+        print(f"任务已添加到队列,client_id: {client_id}")
+        
+   except Exception as e:
+        print(f"处理数据时发生错误: {e}")
+        
 def get_output(uniqueid, path='json/api/'):
     output = read_json_from_file(uniqueid, path,'json')
     if output is not None:
