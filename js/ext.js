@@ -13,7 +13,7 @@ function createButtonWithClickHandler(buttonClass, buttonText, clickHandler) {
 }
 
 function generateUniqueId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 function formatPostData(graphPrompt){
@@ -33,7 +33,6 @@ function formatPostData(graphPrompt){
         pd.title = cpm_input_info['product-title'];
         pd.description = cpm_input_info['product-desc'];
         pd.user_id = TEST_UID;
-        pd.uniqueid = generateUniqueId(); // 添加这行
     }
     console.log("pd:",pd);
     return pd;
@@ -42,7 +41,15 @@ function formatPostData(graphPrompt){
 async function handleDeployButtonClick(app) {
     if (isLoading) return;
     const graphPrompt = await app.graphToPrompt();
-    const uploadData = formatPostData(graphPrompt);
+    const workflow = graphPrompt.workflow; // 获取工作流数据
+    const output = graphPrompt.output; // 获取输出数据
+    const uniqueid = generateUniqueId();
+    const uploadData = {
+        ...formatPostData(graphPrompt),
+        uniqueid,
+        workflow,
+        output
+    };
     if (uploadData) {
         try {
             const res = await request(END_POITN_URL, uploadData);
