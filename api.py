@@ -520,19 +520,17 @@ def run_prompt_task(output,workflow):
 async def pre_process_data(output,workflow):
    try:
         prompt = output
-        # 生成唯一的客户端ID
-        client_id = str(uuid.uuid4())
         # 准备任务数据
         task_data = {
             "type": "prpmpt_queue",
             "data": {
-                "client_id": client_id,
+                "client_id": cur_client_id,
                 "prompt": prompt 
             }
         }
         # 将任务添加到队列
         add_task_to_queue(task_data)
-        print(f"任务已添加到队列,client_id: {client_id}")
+        print(f"任务已添加到队列,client_id: {cur_client_id}")
         
    except Exception as e:
         print(f"处理数据时发生错误: {e}")
