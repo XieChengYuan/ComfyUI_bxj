@@ -1,5 +1,5 @@
 import { app } from '../../../scripts/app.js'
-import {api} from '../../../scripts/api.js'
+import { api } from '../../../scripts/api.js'
 import { $el } from '../../../scripts/ui.js'
 
 let isLoading = false;
@@ -16,25 +16,24 @@ function generateUniqueId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-function formatPostData(graphPrompt){
+function formatPostData(graphPrompt) {
     const pp = graphPrompt.output;
     let pd = {};
-    let cpm_input_info={}
-    console.log("graphPrompt",graphPrompt);
+    let cpm_input_info = {}
+    console.log("graphPrompt", graphPrompt);
     for (const value of Object.values(pp)) {
         if (value.class_type === 'sdCpm') {
             cpm_input_info = value.inputs;
         }
     }
-    console.log("cpm_input_info:",cpm_input_info);
-    if(cpm_input_info)
-    {
+    console.log("cpm_input_info:", cpm_input_info);
+    if (cpm_input_info) {
         pd.imageBase = pp[cpm_input_info['product_img1(optional)'][0]].inputs.image;
         pd.title = cpm_input_info['product-title'];
         pd.description = cpm_input_info['product-desc'];
         pd.user_id = TEST_UID;
     }
-    console.log("pd:",pd);
+    console.log("pd:", pd);
     return pd;
 }
 
@@ -52,8 +51,9 @@ async function handleDeployButtonClick(app) {
     };
     if (uploadData) {
         try {
+            console.log("body:", uploadData)
             const res = await request(END_POITN_URL, uploadData);
-            console.log("res",res)
+            console.log("response:", res)
             if (res && res.data && res.success) {
                 showMsgDialog('上传成功');
                 console.log('上传返回的数据:', res.data);
@@ -91,7 +91,7 @@ async function request(path, uploadData) {
 
     } catch (error) {
         console.error('Request failed:', error);
-        return null; 
+        return null;
     }
 }
 
