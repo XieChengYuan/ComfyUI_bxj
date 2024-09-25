@@ -23,7 +23,8 @@ import logging
 
 # 在文件开头设置日志配置
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s",
 )
 
 
@@ -213,10 +214,11 @@ async def receive_messages(websocket, c_flag):
                 message = await asyncio.wait_for(
                     websocket.recv(), timeout=HEART_INTERVAL * 5
                 )
-                print(f"Received message from wsServer: {message}")
                 if c_flag == 1:
+                    print(f"接收云端ws事件数据: {message}")
                     await process_server_message1(message)
                 elif c_flag == 2:
+                    print(f"接收comfyUI生图进度: {message}")
                     await process_server_message2(message)
 
             except asyncio.TimeoutError:
@@ -324,6 +326,28 @@ async def process_server_message2(message):
     elif message_type == "executed":
         prompt_id = message_json["data"]["prompt_id"]
         print(f"任务执行完成: {prompt_id}")
+
+        filename = message_json["data"]["output"]["images"][0]["filename"]
+        # "filename": "ComfyUI_00031_.png",
+        # get_generated_image_and_upload(filename)
+        media_link = await get_generated_image(filename)
+
+        executed_success = {
+            "type": "executed_success",
+            "data": {
+                "uin_hash": generate_unique_hash(
+                    get_mac_address(), get_port_from_cmd()
+                ),
+                "user_id": TEST_UID,
+                # "kaji_generate_record_id": kaji_generate_record_id,
+                "prompt_id": prompt_id,
+                "media_link": media_link,
+                "clientType": "plugin",
+                "connCode": 1,
+            },
+        }
+        await wss_c1.send(json.dumps(executed_success))
+
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
     # 可以根据需要添加更多消息类型的处理
@@ -447,11 +471,12 @@ async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
     if workflow and "extra_data" in workflow:
         data["extra_data"] = workflow["extra_data"]
 
+    logging.info(f"/prompt 接口入参: {data}")
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{comfyui_address}/prompt", json=data) as response:
             if response.status == 200:
                 response_json = await response.json()
-                logging.info(f"发送prompt成功，接口响应: {response_json}")
+                logging.info(f"/prompt 接口出参: {response_json}")
                 return response_json
             else:
                 error_text = await response.text()
@@ -461,6 +486,7 @@ async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
                 return None
 
 
+@DeprecationWarning
 async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
     comfyui_address = get_comfyui_address()
     retries = 0
@@ -496,7 +522,7 @@ async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
     return None
 
 
-async def get_generated_image(session, prompt_id):
+async def get_generated_image_by_id(session, prompt_id):
     comfyui_address = get_comfyui_address()
     async with session.get(f"{comfyui_address}/history/{prompt_id}") as response:
         if response.status == 200:
@@ -513,6 +539,21 @@ async def get_generated_image(session, prompt_id):
                     ) as img_response:
                         if img_response.status == 200:
                             return await img_response.read()
+
+
+async def get_generated_image(filename):
+    comfyui_address = get_comfyui_address()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{comfyui_address}/view?filename={filename}"
+        ) as img_response:
+            if img_response.status == 200:
+                res = await img_response.read()
+                logging.info("获取本地的图片结果，模拟图片上传，成功获取url")
+                # todo https://doc.dcloud.net.cn/uniCloud/ext-storage/dev.html#q3
+                # 上传到扩展存储。1：获取前端上传参数（地址和token），2：然后上传
+
+                return "https://xxx/" + filename
 
 
 def run_gc_task(task_data):
@@ -532,12 +573,12 @@ async def run_gc_task_async(task_data):
         if "client_id" not in task_data or "prompt" not in task_data:
             logging.error(f"任务数据不完整: {task_data}")
             return
-        logging.info(f"队列内-开始执行任务: {task_data['client_id']}")
+        logging.info(f"工作队列获取任务-开始执行。")
         prompt = task_data["prompt"]
         client_id = task_data["client_id"]
+        kaji_generate_record_id = task_data["kaji_generate_record_id"]
         uniqueid = task_data.get("uniqueid")
         workflow = get_workflow(uniqueid) if uniqueid else None
-        logging.info(f"workflow会有值吗？打印看看 :{workflow}")
 
         if not validate_prompt(prompt):
             logging.error("prompt 数据无效")
@@ -545,10 +586,26 @@ async def run_gc_task_async(task_data):
 
         result = await send_prompt_to_comfyui(prompt, client_id, workflow)
         if result and "prompt_id" in result:
-            # prompt_id = result["prompt_id"]
-            logging.info(f"prompt任务成功提交，prompt_id: {result['prompt_id']}")
+            prompt_id = result["prompt_id"]
+            # 存储到云端，表明改生图任务提交成功，等待最终结果中
+            submit_success = {
+                "type": "submit_success",
+                "data": {
+                    "uin_hash": generate_unique_hash(
+                        get_mac_address(), get_port_from_cmd()
+                    ),
+                    "user_id": TEST_UID,
+                    "kaji_generate_record_id": kaji_generate_record_id,
+                    "prompt_id": prompt_id,
+                    "clientType": "plugin",
+                    "connCode": 1,
+                },
+            }
+            await wss_c1.send(json.dumps(submit_success))
+
+            logging.info(f"任务成功提交，prompt_id: {result['prompt_id']}")
         else:
-            logging.error("prompt任务提交失败")
+            logging.error("任务提交失败")
 
     except Exception as e:
         logging.error(f"执行任务时发生错误: {str(e)}")
@@ -558,18 +615,17 @@ async def run_gc_task_async(task_data):
 # 添加任务到队列的函数
 def add_task_to_queue(task_data):
     gc_task_queue.put(task_data)
-    print(
-        f"任务(包含工作流的数据)已添加到队列。client_id: {task_data['data']['client_id']}"
-    )
+    print("任务(包含工作流的数据)添加至工作队列。")
 
 
 def deal_recv_generate_data(recv_data):
     uniqueid = recv_data["uniqueid"]
+    kaji_generate_record_id = recv_data["kaji_generate_record_id"]
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
     if output:
         # 这里有疑问，只是将任务和入参数据，一起放到队列中，需要额外开设线程吗
-        executor.submit(run_prompt_task, output, workflow)
+        executor.submit(run_prompt_task, kaji_generate_record_id, output, workflow)
     else:
         add_task_to_queue(
             {
@@ -583,17 +639,21 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def run_prompt_task(output, workflow):
-    return asyncio.run(pre_process_data(output, workflow))
+def run_prompt_task(kaji_generate_record_id, output, workflow):
+    return asyncio.run(pre_process_data(kaji_generate_record_id, output, workflow))
 
 
-async def pre_process_data(output, workflow):
+async def pre_process_data(kaji_generate_record_id, output, workflow):
     try:
         prompt = output
         # 准备任务数据
         task_data = {
             "type": "prpmpt_queue",
-            "data": {"client_id": cur_client_id, "prompt": prompt},
+            "data": {
+                "kaji_generate_record_id": kaji_generate_record_id,
+                "client_id": cur_client_id,
+                "prompt": prompt,
+            },
         }
         # 将任务添加到队列
         add_task_to_queue(task_data)
