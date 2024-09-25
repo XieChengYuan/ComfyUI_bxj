@@ -30,6 +30,7 @@ logging.basicConfig(
 
 DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
+END_POINT_URL3 = "/kaji-storage/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
 TEST_UID = "66c1f5419d9f915ad22bf864"
@@ -318,14 +319,13 @@ async def process_server_message2(message):
         # 处理状态更新
         pass
     elif message_type == "execution_start":
-        print(f"开始执行任务: {message_json['data']['prompt_id']}")
+        pass
     elif message_type == "executing":
-        print(f"正在执行: {message_json}")
+        pass
     elif message_type == "execution_cached":
-        print(f"使用缓存结果: {message_json}")
+        pass
     elif message_type == "executed":
         prompt_id = message_json["data"]["prompt_id"]
-        print(f"任务执行完成: {prompt_id}")
 
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
@@ -393,6 +393,7 @@ async def kaji_r(req):
                 output = oldData.get("output")
                 save_workflow(uniqueid, {"workflow": workflow, "output": output})
                 newData = reformat(oldData)
+                logging.info(f"作品上传接口入参:{newData}")
             async with session.post(
                 BASE_URL + END_POINT_URL1, json=newData
             ) as response:
@@ -548,12 +549,18 @@ async def get_generated_image(filename):
             f"{comfyui_address}/view?filename={filename}"
         ) as img_response:
             if img_response.status == 200:
-                res = await img_response.read()
-                logging.info("获取本地的图片结果，模拟图片上传，成功获取url")
+                image_content = await img_response.read()
+                logging.info("获取本地的图片结果，并传到云端")
                 # todo https://doc.dcloud.net.cn/uniCloud/ext-storage/dev.html#q3
                 # 上传到扩展存储。1：获取前端上传参数（地址和token），2：然后上传
-
-                return "https://xxx/" + filename
+                imageBase = base64.b64encode(image_content).decode("utf-8")
+                async with session.post(
+                    BASE_URL + END_POINT_URL3, json={"imageBase": imageBase}
+                ) as upload_response:
+                    if upload_response.status == 200:
+                        result = await upload_response.json()
+                        logging.info(f"生产成功，返回值: {result}")
+                        return result.get("data").get("tempUrl")
 
 
 def run_gc_task(task_data):
