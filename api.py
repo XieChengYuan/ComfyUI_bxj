@@ -322,16 +322,14 @@ async def process_server_message2(message):
         pass
     elif message_type == "executing":
         pass
-    elif message_type == "execution_cached":
+    elif message_type == 'progress':
         pass
-    elif message_type == "executed":
+    elif message_type == "execution_success":
         prompt_id = message_json["data"]["prompt_id"]
-
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
         # get_generated_image_and_upload(filename)
         media_link = await get_generated_image(filename)
-
         executed_success = {
             "type": "executed_success",
             "data": {
@@ -347,7 +345,10 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(executed_success))
-
+    elif message_type == "execution_cached":
+        pass
+    elif message_type == "executed":
+        pass
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
     # 可以根据需要添加更多消息类型的处理
@@ -631,8 +632,10 @@ def deal_recv_generate_data(recv_data):
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
     if output:
-        # 这里有疑问，只是将任务和入参数据，一起放到队列中，需要额外开设线程吗
-        executor.submit(run_prompt_task, kaji_generate_record_id, output, workflow)
+        # 这里有疑问，只是将任务和入参数据，一起放到队列中，需要额外开设线程吗？
+        #确实不用
+        # executor.submit(run_prompt_task, kaji_generate_record_id, output, workflow)
+        pre_process_data(kaji_generate_record_id, output, workflow)
     else:
         add_task_to_queue(
             {
@@ -646,11 +649,7 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def run_prompt_task(kaji_generate_record_id, output, workflow):
-    return asyncio.run(pre_process_data(kaji_generate_record_id, output, workflow))
-
-
-async def pre_process_data(kaji_generate_record_id, output, workflow):
+def pre_process_data(kaji_generate_record_id, output, workflow):
     try:
         prompt = output
         # 准备任务数据
