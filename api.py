@@ -20,6 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock, Condition
 from comfy.cli_args import parser
 import logging
+import random
 
 # 在文件开头设置日志配置
 logging.basicConfig(
@@ -325,6 +326,10 @@ async def process_server_message2(message):
     elif message_type == 'progress':
         pass
     elif message_type == "execution_success":
+        pass
+    elif message_type == "execution_cached":
+        pass
+    elif message_type == "executed":
         prompt_id = message_json["data"]["prompt_id"]
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
@@ -345,10 +350,6 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(executed_success))
-    elif message_type == "execution_cached":
-        pass
-    elif message_type == "executed":
-        pass
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
     # 可以根据需要添加更多消息类型的处理
@@ -465,6 +466,7 @@ def task_generate():
 async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
     comfyui_address = get_comfyui_address()
 
+    
     data = {
         "prompt": prompt,
         "client_id": client_id,
@@ -591,7 +593,6 @@ async def run_gc_task_async(task_data):
         if not validate_prompt(prompt):
             logging.error("prompt 数据无效")
             return
-
         result = await send_prompt_to_comfyui(prompt, client_id, workflow)
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
@@ -632,9 +633,6 @@ def deal_recv_generate_data(recv_data):
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
     if output:
-        # 这里有疑问，只是将任务和入参数据，一起放到队列中，需要额外开设线程吗？
-        #确实不用
-        # executor.submit(run_prompt_task, kaji_generate_record_id, output, workflow)
         pre_process_data(kaji_generate_record_id, output, workflow)
     else:
         add_task_to_queue(
@@ -651,14 +649,19 @@ def deal_recv_generate_data(recv_data):
 
 def pre_process_data(kaji_generate_record_id, output, workflow):
     try:
-        prompt = output
+        # 直接调用Prompt接口 随机种子的值不会改变，会导致每次生图都走comfyui原生的缓存机制
+        #（缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
+        # 这里手动重置随机种子值
+        for item in output.values():
+            if item.get('class_type') == 'KSampler':
+                item['inputs']['seed'] = random.randint(10**14, 10**15 - 1)
         # 准备任务数据
         task_data = {
             "type": "prpmpt_queue",
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
                 "client_id": cur_client_id,
-                "prompt": prompt,
+                "prompt": output,
             },
         }
         # 将任务添加到队列
