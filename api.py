@@ -394,7 +394,7 @@ async def kaji_r(req):
                 output = oldData.get("output")
                 save_workflow(uniqueid, {"workflow": workflow, "output": output})
                 newData = reformat(oldData)
-                logging.info(f"作品上传接口入参:{newData}")
+                #logging.info(f"作品上传接口入参:{newData}")
             async with session.post(
                 BASE_URL + END_POINT_URL1, json=newData
             ) as response:
