@@ -649,7 +649,7 @@ def deal_recv_generate_data(recv_data):
 
 def pre_process_data(kaji_generate_record_id, output, workflow):
     try:
-        # 直接调用Prompt接口 随机种子的值不会改变，会导致每次生图都走comfyui原生的缓存机制
+        # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         #（缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
         # 这里手动重置随机种子值
         for item in output.values():
