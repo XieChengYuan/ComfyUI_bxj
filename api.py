@@ -654,6 +654,7 @@ def pre_process_data(kaji_generate_record_id, output, workflow):
         # 这里手动重置随机种子值
         for item in output.values():
             if item.get('class_type') == 'KSampler':
+                #这个随机数只需要和上次生图不一样就行，seed的位数为15位
                 item['inputs']['seed'] = random.randint(10**14, 10**15 - 1)
         # 准备任务数据
         task_data = {
