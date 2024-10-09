@@ -135,6 +135,52 @@ def get_comfy_root(levels_up=2):
 
     return proj_root
 
+def getInputTypeArr(data):
+    
+    input_type_arr = []
+    for key, item in data.items():
+        if item.get("class_type") == "sdCpm":
+            inputs = item.get("inputs")
+            input_text1 = inputs.get("input_text1(optional)")
+            input_text3 = inputs.get("input_text3(optional)")
+            input_text2 = inputs.get("input_text2(optional)")
+            input_img1 = inputs.get("input_img1(optional)")
+            input_img2 = inputs.get("input_img2(optional)")
+            input_img3 = inputs.get("input_img3(optional)")
+            input_video1 = inputs.get("input_video1(optional)")
+            input_video2 = inputs.get("input_video2(optional)")
+            input_video3 = inputs.get("input_video3(optional)")
+
+            if input_text1:
+                text1 = {"index": input_text1[0], "class_type": data.get(input_text1[0], {}).get("class_type")}
+                input_type_arr.append(text1)
+            if input_text2:
+                text2 = {"index": input_text2[0], "class_type": data.get(input_text2[0], {}).get("class_type")}
+                input_type_arr.append(text2)
+            if input_text3:
+                text3 = {"index": input_text3[0], "class_type": data.get(input_text3[0], {}).get("class_type")}
+                input_type_arr.append(text3)
+            if input_img1:
+                img1 = {"index": input_img1[0], "class_type": data.get(input_img1[0], {}).get("class_type")}
+                input_type_arr.append(img1)
+            if input_img2:
+                img2 = {"index": input_img2[0], "class_type": data.get(input_img2[0], {}).get("class_type")}
+                input_type_arr.append(img2)
+            if input_img3:
+                img3 = {"index": input_img3[0], "class_type": data.get(input_img3[0], {}).get("class_type")}
+                input_type_arr.append(img3)
+            if input_video1:
+                video1 = {"index": input_video1[0], "class_type": data.get(input_video1[0], {}).get("class_type")}
+                input_type_arr.append(video1)
+            if input_video2:
+                video2 = {"index": input_video2[0], "class_type": data.get(input_video2[0], {}).get("class_type")}
+                input_type_arr.append(video2)
+            if input_video3:
+                video3 = {"index": input_video3[0], "class_type": data.get(input_video3[0], {}).get("class_type")}
+                input_type_arr.append(video3)
+    logging.info(f"input_type_arr =====》 {input_type_arr}")
+    return input_type_arr
+    
 
 def reformat(uploadData):
     image_base = uploadData.get("imageBase")
@@ -147,10 +193,13 @@ def reformat(uploadData):
             image_content = img_file.read()
 
         uploadData["imageBase"] = base64.b64encode(image_content).decode("utf-8")
+        print("imageBase 已成功替换为文件内容")
         uploadData["uni_hash"] = generate_unique_hash(
             get_mac_address(), get_port_from_cmd()
         )
-        print("imageBase 已成功替换为文件内容")
+        uploadData["inputTypeArr"] = getInputTypeArr(uploadData.get("output"))
+        uploadData.pop("output", None)
+        uploadData.pop("workflow", None)
     else:
         raise FileNotFoundError(f"图片文件不存在或无效: {image_path}")
 
