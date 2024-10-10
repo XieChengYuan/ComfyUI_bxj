@@ -21,6 +21,9 @@ from threading import Lock, Condition
 from comfy.cli_args import parser
 import logging
 import random
+import requests
+import mimetypes
+
 
 # 在文件开头设置日志配置
 logging.basicConfig(
@@ -35,6 +38,8 @@ END_POINT_URL3 = "/kaji-storage/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
 TEST_UID = "66c1f5419d9f915ad22bf864"
+media_save_dir = ".../../input"
+media_output_dir = ".../../output"
 wss_c1 = None
 wss_c2 = None
 RECONNECT_DELAY = 5
@@ -42,6 +47,36 @@ MAX_RECONNECT_ATTEMPTS = 3
 HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
+
+def download_media(url, save_dir):
+    try:
+        # 发送 GET 请求获取内容
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # 如果请求不成功则抛出异常
+
+        # 从 Content-Type 或 URL 中获取文件扩展名
+        content_type = response.headers.get('content-type')
+        extension = mimetypes.guess_extension(content_type) or os.path.splitext(url)[1]
+        if not extension:
+            extension = '.bin'  # 如果无法确定扩展名，使用 .bin
+
+        # 生成唯一的文件名
+        filename = f"{os.urandom(8).hex()}{extension}"
+        save_path = os.path.join(save_dir, filename)
+
+        # 确保保存目录存在
+        os.makedirs(save_dir, exist_ok=True)
+
+        # 以二进制写模式打开文件，并写入内容
+        with open(save_path, 'wb') as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+
+        print(f"媒体文件已成功下载到: {save_path}")
+        return save_path
+    except requests.exceptions.RequestException as e:
+        print(f"下载媒体文件时发生错误: {e}")
+        return None
 
 
 def parse_args():
@@ -692,6 +727,33 @@ def deal_recv_generate_data(recv_data):
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
+
+    # 检查消息中是否包含 medias,并添加下载的local_path路径
+    if "medias" in recv_data:
+        for media in recv_data["medias"]:
+            url_temp = media["url_temp"]
+            # 下载 url_temp 并将下载后的本地索引和 index 重新绑定
+            local_path = download_media(url_temp,media_save_dir)
+            if local_path:
+                # 获取文件名及后缀
+                filename = os.path.basename(local_path)
+                index = media["index"]
+                if index in output:
+                    output[index]["inputs"]["image"] = filename
+                else:
+                    logging.error(f"未找到索引为 {index} 的输出项")
+            else:
+                logging.error(f"下载媒体失败: {url_temp}")
+    # 检查消息中是否包含 texts，并添加 input_des 到 output 的相应索引
+    if "texts" in recv_data:
+        for text in recv_data["texts"]:
+            input_des = text["input_des"]
+            index = text["index"]
+            if index in output:
+                output[index]["inputs"]["text"] = input_des
+            else:
+                logging.error(f"未找到索引为 {index} 的输出项")
+
     if output:
         pre_process_data(kaji_generate_record_id, output, workflow)
     else:
@@ -716,6 +778,8 @@ def pre_process_data(kaji_generate_record_id, output, workflow):
             if item.get('class_type') == 'KSampler':
                 #这个随机数只需要和上次生图不一样就行，seed的位数为15位
                 item['inputs']['seed'] = random.randint(10**14, 10**15 - 1)
+
+        #使用收到的输入数据生图
         # 准备任务数据
         task_data = {
             "type": "prpmpt_queue",
