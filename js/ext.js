@@ -32,6 +32,8 @@ function formatPostData(graphPrompt) {
         pd.title = cpm_input_info['product-title'];
         pd.description = cpm_input_info['product-desc'];
         pd.user_id = TEST_UID;
+        pd.price = cpm_input_info['product-prices'];
+        pd.free_times = cpm_input_info['free-times'];
     }
     console.log("pd:", pd);
     return pd;
