@@ -142,8 +142,8 @@ def getInputTypeArr(data):
         if item.get("class_type") == "sdCpm":
             inputs = item.get("inputs")
             input_text1 = inputs.get("input_text1(optional)")
-            input_text3 = inputs.get("input_text3(optional)")
             input_text2 = inputs.get("input_text2(optional)")
+            input_text3 = inputs.get("input_text3(optional)")
             input_img1 = inputs.get("input_img1(optional)")
             input_img2 = inputs.get("input_img2(optional)")
             input_img3 = inputs.get("input_img3(optional)")
@@ -151,32 +151,43 @@ def getInputTypeArr(data):
             input_video2 = inputs.get("input_video2(optional)")
             input_video3 = inputs.get("input_video3(optional)")
 
+            text1_tips = inputs.get("text1_tips")
+            text2_tips = inputs.get("text2_tips")
+            text3_tips = inputs.get("text3_tips")
+            img1_tips = inputs.get("img1_tips")
+            img2_tips = inputs.get("img2_tips")
+            img3_tips = inputs.get("img3_tips")
+            video1_tips = inputs.get("video1_tips")
+            video2_tips = inputs.get("video2_tips")
+            video3_tips = inputs.get("video3_tips")
+
+
             if input_text1:
-                text1 = {"index": input_text1[0], "class_type": data.get(input_text1[0], {}).get("class_type")}
+                text1 = {"index": input_text1[0], "class_type": data.get(input_text1[0], {}).get("class_type"),"input_des":text1_tips}
                 input_type_arr.append(text1)
             if input_text2:
-                text2 = {"index": input_text2[0], "class_type": data.get(input_text2[0], {}).get("class_type")}
+                text2 = {"index": input_text2[0], "class_type": data.get(input_text2[0], {}).get("class_type"),"input_des":text2_tips}
                 input_type_arr.append(text2)
             if input_text3:
-                text3 = {"index": input_text3[0], "class_type": data.get(input_text3[0], {}).get("class_type")}
+                text3 = {"index": input_text3[0], "class_type": data.get(input_text3[0], {}).get("class_type"),"input_des":text3_tips}
                 input_type_arr.append(text3)
             if input_img1:
-                img1 = {"index": input_img1[0], "class_type": data.get(input_img1[0], {}).get("class_type")}
+                img1 = {"index": input_img1[0], "class_type": data.get(input_img1[0], {}).get("class_type"),"input_des":img1_tips}
                 input_type_arr.append(img1)
             if input_img2:
-                img2 = {"index": input_img2[0], "class_type": data.get(input_img2[0], {}).get("class_type")}
+                img2 = {"index": input_img2[0], "class_type": data.get(input_img2[0], {}).get("class_type"),"input_des":img2_tips}
                 input_type_arr.append(img2)
             if input_img3:
-                img3 = {"index": input_img3[0], "class_type": data.get(input_img3[0], {}).get("class_type")}
+                img3 = {"index": input_img3[0], "class_type": data.get(input_img3[0], {}).get("class_type"),"input_des":img3_tips}
                 input_type_arr.append(img3)
             if input_video1:
-                video1 = {"index": input_video1[0], "class_type": data.get(input_video1[0], {}).get("class_type")}
+                video1 = {"index": input_video1[0], "class_type": data.get(input_video1[0], {}).get("class_type"),"input_des":video1_tips}
                 input_type_arr.append(video1)
             if input_video2:
-                video2 = {"index": input_video2[0], "class_type": data.get(input_video2[0], {}).get("class_type")}
+                video2 = {"index": input_video2[0], "class_type": data.get(input_video2[0], {}).get("class_type"),"input_des":video2_tips}
                 input_type_arr.append(video2)
             if input_video3:
-                video3 = {"index": input_video3[0], "class_type": data.get(input_video3[0], {}).get("class_type")}
+                video3 = {"index": input_video3[0], "class_type": data.get(input_video3[0], {}).get("class_type"),"input_des":video3_tips}
                 input_type_arr.append(video3)
     logging.info(f"input_type_arr =====》 {input_type_arr}")
     return input_type_arr
