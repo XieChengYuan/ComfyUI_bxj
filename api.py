@@ -728,11 +728,10 @@ def deal_recv_generate_data(recv_data):
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
 
-    # 检查消息中是否包含 medias,并添加下载的local_path路径
+    # 检查消息中是否包含 medias,获取下载的local_path路径，替换output中的图片名为图片输入
     if "medias" in recv_data:
         for media in recv_data["medias"]:
             url_temp = media["url_temp"]
-            # 下载 url_temp 并将下载后的本地索引和 index 重新绑定
             local_path = download_media(url_temp,media_save_dir)
             if local_path:
                 # 获取文件名及后缀
