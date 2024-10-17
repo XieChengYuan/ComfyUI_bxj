@@ -37,6 +37,7 @@ BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
 END_POINT_URL3 = "/kaji-storage/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
+END_POINT_URL3 = "/reset-product-status/resetProductStatus"
 TEST_UID = "66c1f5419d9f915ad22bf864"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
@@ -294,11 +295,13 @@ async def send_heartbeat(websocket):
     while True:
         try:
             heartbeat_message = json.dumps({"type": "ping"})
-            await websocket.send(heartbeat_message)
+            await websocket.send(heartbeat_message)          
             print("Sent heartbeat")
 
         except Exception as e:
             print(f"Error sending heartbeat or no response: {e}")
+            if websocket == wss_c1:  # 判断websocket是否等于wss_c1
+                await reset_product_status(0)  # 设置作品状态为0
             break
 
         await asyncio.sleep(HEART_INTERVAL)
@@ -342,6 +345,7 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
             if c_flag == 1:
                 wss_c1 = websocket
                 print(f"websocket connected to WebSocket server at {url}")
+                await reset_product_status(1)  # 设置作品状态为0
                 initial_message = {
                     "type": "initial_request",
                     "data": {
@@ -363,18 +367,23 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
             await asyncio.gather(*tasks)
     except websockets.ConnectionClosedOK as e:
         print(f"WebSocket connection closed normally with code {e.code}: {e.reason}")
+        await reset_product_status(0)  # 设置作品状态为0
     except websockets.ConnectionClosedError as e:
         print(f"WebSocket connection closed with error, code {e.code}: {e.reason}")
+        await reset_product_status(0)  # 设置作品状态为0
     except Exception as e:
         print(f"WebSocket error: {e}")
+        await reset_product_status(0)  # 设置作品状态为0
     finally:
         # 确保 websocket 对象在关闭连接之前被正确创建
         if websocket is not None and websocket.open:
             await on_websocket_disconnection(websocket)
+            await reset_product_status(1)  # 设置作品状态为0
         else:
             print(
                 "WebSocket object was not created successfully; skipping disconnection."
             )
+            await reset_product_status(0)  # 设置作品状态为0
     # 判断是否已达到最大重连次数
     if reconnect_attempts < MAX_RECONNECT_ATTEMPTS:
         print(
@@ -479,6 +488,7 @@ async def get_wss_server_url():
 
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
+    global PRODUCT_ID 
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
         oldData = jsonData.get("uploadData")
@@ -497,9 +507,11 @@ async def kaji_r(req):
                 try:
                     res = await response.text()
                     res_js = json.loads(res)
-                    logging.info(f"作品上传接口调用结果:{res_js}")
-                    # if DEBUG:
-                    #     print("res_js", res_js)
+                    PRODUCT_ID = res_js.get("data", {}).get("_id", None)
+                    print("res_js",res_js)
+                    
+                    if PRODUCT_ID is None:
+                        raise ValueError("未能从响应中获取 PRODUCT_ID")
                     thread_exe()
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
@@ -509,6 +521,30 @@ async def kaji_r(req):
         else:
             return web.Response(status=400, text="uploadData is missing")
 
+async def reset_product_status(status):
+    print("PRODUCT_ID",PRODUCT_ID)
+    if not PRODUCT_ID:
+        raise ValueError("产品ID不能为空")
+    
+    url = BASE_URL + END_POINT_URL3
+    payload = {
+        "product_id": PRODUCT_ID,
+        "user_id":TEST_UID,
+        "status":status
+        }  # 传入的参数
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload) as response:
+            if response.status == 200:
+                result = await response.json()
+                logging.info(f"产品状态已重置: {result}")
+                return result
+            else:
+                error_text = await response.text()
+                logging.error(f"重置产品状态失败，状态码: {response.status}, 错误信息: {error_text}")
+                return None
+
+# ... existing code ...
 
 def save_workflow(uniqueid, data):
     base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
