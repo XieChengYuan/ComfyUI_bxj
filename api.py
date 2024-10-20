@@ -438,7 +438,6 @@ async def process_server_message2(message):
                 "data": {
                     "value": value,
                     "prompt_id": prompt_id,
-                    "client_id":client_id
                 }
             }
             await wss_c1.send(json.dumps(progress_message))  # 发送进度消息
@@ -734,6 +733,7 @@ async def run_gc_task_async(task_data):
         prompt = task_data["prompt"]
         client_id = task_data["client_id"]
         kaji_generate_record_id = task_data["kaji_generate_record_id"]
+        device_id = task_data["device_id"]
         uniqueid = task_data.get("uniqueid")
         workflow = get_workflow(uniqueid) if uniqueid else None
 
@@ -753,6 +753,7 @@ async def run_gc_task_async(task_data):
                     "user_id": TEST_UID,
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
+                    "device_id":device_id,
                     "clientType": "plugin",
                     "connCode": 1,
                 },
