@@ -37,7 +37,7 @@ BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
 END_POINT_URL3 = "/kaji-storage/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
-END_POINT_URL3 = "/reset-product-status/resetProductStatus"
+END_POINT_URL4 = "/reset-product-status/resetProductStatus"
 TEST_UID = "66c1f5419d9f915ad22bf864"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
@@ -526,7 +526,7 @@ async def reset_product_status(status):
     if not PRODUCT_ID:
         raise ValueError("产品ID不能为空")
     
-    url = BASE_URL + END_POINT_URL3
+    url = BASE_URL + END_POINT_URL4
     payload = {
         "product_id": PRODUCT_ID,
         "user_id":TEST_UID,
