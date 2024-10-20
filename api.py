@@ -23,6 +23,7 @@ import logging
 import random
 import requests
 import mimetypes
+import math
 
 
 # 在文件开头设置日志配置
@@ -43,6 +44,8 @@ media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 wss_c1 = None
 wss_c2 = None
+last_value = None
+last_time = None
 RECONNECT_DELAY = 5
 MAX_RECONNECT_ATTEMPTS = 3
 HEART_INTERVAL = 300
@@ -407,7 +410,7 @@ async def process_server_message1(message):
         if message_type == "pong":
             print("连接正常")
 
-        elif message_type == "generate_process":
+        elif message_type == "generate_submit":
             print("收到生图消息", data)
             deal_recv_generate_data(data)
 
@@ -418,6 +421,7 @@ async def process_server_message1(message):
 
 
 async def process_server_message2(message):
+    global last_value, last_time 
     message_json = json.loads(message)
     message_type = message_json.get("type")
     if message_type == "status":
@@ -430,13 +434,36 @@ async def process_server_message2(message):
     elif message_type == 'progress':
         progress_data = message_json.get("data", {})
         value = progress_data.get("value")
-        prompt_id = progress_data.get("prompt_id")    
+        max_value = progress_data.get("max")
+        prompt_id = progress_data.get("prompt_id")
+        current_time = time.time()  # 获取当前时间
+        # 计算剩余时间
+        if last_value is not None and last_time is not None:
+            # 计算时间间隔
+            time_interval = current_time - last_time
+            # 计算进度变化
+            value_change = value - last_value
+            
+            if value_change > 0:  # 确保进度在增加
+                # 估算总时间
+                estimated_total_time = (max_value / value_change) * time_interval
+                remaining_time =estimated_total_time - (value * time_interval)
+            else:
+                remaining_time = 0  # 如果没有进度变化，设置剩余时间为 0
+        else:
+            remaining_time = 0  # 第一次接收进度时，无法计算剩余时间
+        remaining_time = math.ceil(max(remaining_time, 0)) 
+        # 更新上一个值和时间
+        last_value = value
+        last_time = current_time
+
         # 通过 wss_c1 发送进度信息
         if wss_c1 is not None:
             progress_message = {
-                "type": "progress",
+                "type": "progress_update",
                 "data": {
-                    "value": value,
+                     "user_id": TEST_UID,
+                    "remaining_time": remaining_time,  # 发送剩余时间
                     "prompt_id": prompt_id,
                 }
             }
@@ -733,7 +760,6 @@ async def run_gc_task_async(task_data):
         prompt = task_data["prompt"]
         client_id = task_data["client_id"]
         kaji_generate_record_id = task_data["kaji_generate_record_id"]
-        device_id = task_data["device_id"]
         uniqueid = task_data.get("uniqueid")
         workflow = get_workflow(uniqueid) if uniqueid else None
 
@@ -753,7 +779,6 @@ async def run_gc_task_async(task_data):
                     "user_id": TEST_UID,
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
-                    "device_id":device_id,
                     "clientType": "plugin",
                     "connCode": 1,
                 },
@@ -777,7 +802,7 @@ def add_task_to_queue(task_data):
 
 def deal_recv_generate_data(recv_data):
     uniqueid = recv_data["uniqueid"]
-    device_id = recv_data["device_id"]
+
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
@@ -808,14 +833,13 @@ def deal_recv_generate_data(recv_data):
                 logging.error(f"未找到索引为 {index} 的输出项")
 
     if output:
-        pre_process_data(kaji_generate_record_id, device_id,output, workflow)
+        pre_process_data(kaji_generate_record_id,output, workflow)
     else:
         add_task_to_queue(
             {
                 "type": "prompt_error",
                 "data": {
                     "uniqueid": uniqueid,
-                    "device_id":device_id,
                     "msg": "作品工作流找不到了",
                     "error_code": 1,
                 },
@@ -823,7 +847,7 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def pre_process_data(kaji_generate_record_id, device_id,output, workflow):
+def pre_process_data(kaji_generate_record_id,output, workflow):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         #（缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
@@ -840,7 +864,6 @@ def pre_process_data(kaji_generate_record_id, device_id,output, workflow):
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
                 "client_id": cur_client_id,
-                "device_id":device_id,
                 "prompt": output,
             },
         }
