@@ -6,7 +6,7 @@ class sdCpm:
             "required": {
                 "product-title": ("STRING", {"multiline": False, "default": "此处设置作品的标题"}),
                 "product-desc": ("STRING", {"multiline": False, "default": "此处设置作品的描述简介"}),
-                "product-prices": ("FLOAT", {"default": 0.1,"min": 0,"max": 9999,"step": 0.01,"display": "number"}),
+                "product-prices": ("FLOAT", {"default": 1,"min": 0,"max": 9999,"step": 1,"display": "number"}),
                 "free-times": ("INT", {"default": 3,"min": 0,"max": 99,"step": 1,"display": "number"}),
             },
             "optional": {
