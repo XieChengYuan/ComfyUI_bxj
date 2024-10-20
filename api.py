@@ -428,7 +428,23 @@ async def process_server_message2(message):
     elif message_type == "executing":
         pass
     elif message_type == 'progress':
-        pass
+        progress_data = message_json.get("data", {})
+        value = progress_data.get("value")
+        prompt_id = progress_data.get("prompt_id")    
+        # 通过 wss_c1 发送进度信息
+        if wss_c1 is not None:
+            progress_message = {
+                "type": "progress",
+                "data": {
+                    "value": value,
+                    "prompt_id": prompt_id,
+                    "client_id":client_id
+                }
+            }
+            await wss_c1.send(json.dumps(progress_message))  # 发送进度消息
+            print(f"发送进度更新: {progress_message}")
+        else:
+            print("wss_c1 连接未建立，无法发送进度消息")
     elif message_type == "execution_success":
         pass
     elif message_type == "execution_cached":
@@ -760,6 +776,7 @@ def add_task_to_queue(task_data):
 
 def deal_recv_generate_data(recv_data):
     uniqueid = recv_data["uniqueid"]
+    device_id = recv_data["device_id"]
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
@@ -790,13 +807,14 @@ def deal_recv_generate_data(recv_data):
                 logging.error(f"未找到索引为 {index} 的输出项")
 
     if output:
-        pre_process_data(kaji_generate_record_id, output, workflow)
+        pre_process_data(kaji_generate_record_id, device_id,output, workflow)
     else:
         add_task_to_queue(
             {
                 "type": "prompt_error",
                 "data": {
                     "uniqueid": uniqueid,
+                    "device_id":device_id,
                     "msg": "作品工作流找不到了",
                     "error_code": 1,
                 },
@@ -804,7 +822,7 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def pre_process_data(kaji_generate_record_id, output, workflow):
+def pre_process_data(kaji_generate_record_id, device_id,output, workflow):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         #（缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
@@ -821,6 +839,7 @@ def pre_process_data(kaji_generate_record_id, output, workflow):
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
                 "client_id": cur_client_id,
+                "device_id":device_id,
                 "prompt": output,
             },
         }
