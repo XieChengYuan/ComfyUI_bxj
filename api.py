@@ -465,6 +465,8 @@ async def process_server_message2(message):
                      "user_id": TEST_UID,
                     "remaining_time": remaining_time,  # 发送剩余时间
                     "prompt_id": prompt_id,
+                    "value":value,
+                    "max_value":max_value
                 }
             }
             await wss_c1.send(json.dumps(progress_message))  # 发送进度消息
