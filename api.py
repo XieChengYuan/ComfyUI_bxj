@@ -42,6 +42,7 @@ END_POINT_URL4 = "/reset-product-status/resetProductStatus"
 TEST_UID = "66c1f5419d9f915ad22bf864"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
+is_connection = False
 wss_c1 = None
 wss_c2 = None
 last_value = None
@@ -52,6 +53,7 @@ HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
 
+
 def download_media(url, save_dir):
     try:
         # 发送 GET 请求获取内容
@@ -59,10 +61,10 @@ def download_media(url, save_dir):
         response.raise_for_status()  # 如果请求不成功则抛出异常
 
         # 从 Content-Type 或 URL 中获取文件扩展名
-        content_type = response.headers.get('content-type')
+        content_type = response.headers.get("content-type")
         extension = mimetypes.guess_extension(content_type) or os.path.splitext(url)[1]
         if not extension:
-            extension = '.bin'  # 如果无法确定扩展名，使用 .bin
+            extension = ".bin"  # 如果无法确定扩展名，使用 .bin
 
         # 生成唯一的文件名
         filename = f"{os.urandom(8).hex()}{extension}"
@@ -72,7 +74,7 @@ def download_media(url, save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
         # 以二进制写模式打开文件，并写入内容
-        with open(save_path, 'wb') as file:
+        with open(save_path, "wb") as file:
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
 
@@ -174,8 +176,9 @@ def get_comfy_root(levels_up=2):
 
     return proj_root
 
+
 def getInputTypeArr(data):
-    
+
     input_type_arr = []
     for key, item in data.items():
         if item.get("class_type") == "sdCpm":
@@ -200,37 +203,72 @@ def getInputTypeArr(data):
             video2_tips = inputs.get("video2_tips")
             video3_tips = inputs.get("video3_tips")
 
-
             if input_text1:
-                text1 = {"index": input_text1[0], "class_type": data.get(input_text1[0], {}).get("class_type"),"input_des":text1_tips}
+                text1 = {
+                    "index": input_text1[0],
+                    "class_type": data.get(input_text1[0], {}).get("class_type"),
+                    "input_des": text1_tips,
+                }
                 input_type_arr.append(text1)
             if input_text2:
-                text2 = {"index": input_text2[0], "class_type": data.get(input_text2[0], {}).get("class_type"),"input_des":text2_tips}
+                text2 = {
+                    "index": input_text2[0],
+                    "class_type": data.get(input_text2[0], {}).get("class_type"),
+                    "input_des": text2_tips,
+                }
                 input_type_arr.append(text2)
             if input_text3:
-                text3 = {"index": input_text3[0], "class_type": data.get(input_text3[0], {}).get("class_type"),"input_des":text3_tips}
+                text3 = {
+                    "index": input_text3[0],
+                    "class_type": data.get(input_text3[0], {}).get("class_type"),
+                    "input_des": text3_tips,
+                }
                 input_type_arr.append(text3)
             if input_img1:
-                img1 = {"index": input_img1[0], "class_type": data.get(input_img1[0], {}).get("class_type"),"input_des":img1_tips}
+                img1 = {
+                    "index": input_img1[0],
+                    "class_type": data.get(input_img1[0], {}).get("class_type"),
+                    "input_des": img1_tips,
+                }
                 input_type_arr.append(img1)
             if input_img2:
-                img2 = {"index": input_img2[0], "class_type": data.get(input_img2[0], {}).get("class_type"),"input_des":img2_tips}
+                img2 = {
+                    "index": input_img2[0],
+                    "class_type": data.get(input_img2[0], {}).get("class_type"),
+                    "input_des": img2_tips,
+                }
                 input_type_arr.append(img2)
             if input_img3:
-                img3 = {"index": input_img3[0], "class_type": data.get(input_img3[0], {}).get("class_type"),"input_des":img3_tips}
+                img3 = {
+                    "index": input_img3[0],
+                    "class_type": data.get(input_img3[0], {}).get("class_type"),
+                    "input_des": img3_tips,
+                }
                 input_type_arr.append(img3)
             if input_video1:
-                video1 = {"index": input_video1[0], "class_type": data.get(input_video1[0], {}).get("class_type"),"input_des":video1_tips}
+                video1 = {
+                    "index": input_video1[0],
+                    "class_type": data.get(input_video1[0], {}).get("class_type"),
+                    "input_des": video1_tips,
+                }
                 input_type_arr.append(video1)
             if input_video2:
-                video2 = {"index": input_video2[0], "class_type": data.get(input_video2[0], {}).get("class_type"),"input_des":video2_tips}
+                video2 = {
+                    "index": input_video2[0],
+                    "class_type": data.get(input_video2[0], {}).get("class_type"),
+                    "input_des": video2_tips,
+                }
                 input_type_arr.append(video2)
             if input_video3:
-                video3 = {"index": input_video3[0], "class_type": data.get(input_video3[0], {}).get("class_type"),"input_des":video3_tips}
+                video3 = {
+                    "index": input_video3[0],
+                    "class_type": data.get(input_video3[0], {}).get("class_type"),
+                    "input_des": video3_tips,
+                }
                 input_type_arr.append(video3)
     logging.info(f"input_type_arr =====》 {input_type_arr}")
     return input_type_arr
-    
+
 
 def reformat(uploadData):
     image_base = uploadData.get("imageBase")
@@ -298,7 +336,7 @@ async def send_heartbeat(websocket):
     while True:
         try:
             heartbeat_message = json.dumps({"type": "ping"})
-            await websocket.send(heartbeat_message)          
+            await websocket.send(heartbeat_message)
             print("Sent heartbeat")
 
         except Exception as e:
@@ -421,7 +459,7 @@ async def process_server_message1(message):
 
 
 async def process_server_message2(message):
-    global last_value, last_time 
+    global last_value, last_time
     message_json = json.loads(message)
     message_type = message_json.get("type")
     if message_type == "status":
@@ -431,7 +469,7 @@ async def process_server_message2(message):
         pass
     elif message_type == "executing":
         pass
-    elif message_type == 'progress':
+    elif message_type == "progress":
         progress_data = message_json.get("data", {})
         value = progress_data.get("value")
         max_value = progress_data.get("max")
@@ -443,16 +481,16 @@ async def process_server_message2(message):
             time_interval = current_time - last_time
             # 计算进度变化
             value_change = value - last_value
-            
+
             if value_change > 0:  # 确保进度在增加
                 # 估算总时间
                 estimated_total_time = (max_value / value_change) * time_interval
-                remaining_time =estimated_total_time - (value * time_interval)
+                remaining_time = estimated_total_time - (value * time_interval)
             else:
                 remaining_time = 0  # 如果没有进度变化，设置剩余时间为 0
         else:
             remaining_time = 0  # 第一次接收进度时，无法计算剩余时间
-        remaining_time = math.ceil(max(remaining_time, 0)) 
+        remaining_time = math.ceil(max(remaining_time, 0))
         # 更新上一个值和时间
         last_value = value
         last_time = current_time
@@ -462,12 +500,12 @@ async def process_server_message2(message):
             progress_message = {
                 "type": "progress_update",
                 "data": {
-                     "user_id": TEST_UID,
+                    "user_id": TEST_UID,
                     "remaining_time": remaining_time,  # 发送剩余时间
                     "prompt_id": prompt_id,
-                    "value":value,
-                    "max_value":max_value
-                }
+                    "value": value,
+                    "max_value": max_value,
+                },
             }
             await wss_c1.send(json.dumps(progress_message))  # 发送进度消息
             print(f"发送进度更新: {progress_message}")
@@ -532,7 +570,7 @@ async def get_wss_server_url():
 
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
-    global PRODUCT_ID 
+    global PRODUCT_ID
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
         oldData = jsonData.get("uploadData")
@@ -544,7 +582,7 @@ async def kaji_r(req):
                 output = oldData.get("output")
                 save_workflow(uniqueid, {"workflow": workflow, "output": output})
                 newData = reformat(oldData)
-                #logging.info(f"作品上传接口入参:{newData}")
+                # logging.info(f"作品上传接口入参:{newData}")
             async with session.post(
                 BASE_URL + END_POINT_URL1, json=newData
             ) as response:
@@ -552,11 +590,12 @@ async def kaji_r(req):
                     res = await response.text()
                     res_js = json.loads(res)
                     PRODUCT_ID = res_js.get("data", {}).get("_id", None)
-                    print("res_js",res_js)
-                    
+                    print("res_js", res_js)
+
                     if PRODUCT_ID is None:
                         raise ValueError("未能从响应中获取 PRODUCT_ID")
-                    thread_exe()
+                    if res_js.get("success"):
+                        thread_exe()
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
                     return web.Response(
@@ -565,17 +604,18 @@ async def kaji_r(req):
         else:
             return web.Response(status=400, text="uploadData is missing")
 
+
 async def reset_product_status(status):
-    print("PRODUCT_ID",PRODUCT_ID)
+    print("PRODUCT_ID", PRODUCT_ID)
     if not PRODUCT_ID:
         raise ValueError("产品ID不能为空")
-    
+
     url = BASE_URL + END_POINT_URL4
     payload = {
         "product_id": PRODUCT_ID,
-        "user_id":TEST_UID,
-        "status":status
-        }  # 传入的参数
+        "user_id": TEST_UID,
+        "status": status,
+    }  # 传入的参数
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload) as response:
@@ -585,10 +625,14 @@ async def reset_product_status(status):
                 return result
             else:
                 error_text = await response.text()
-                logging.error(f"重置产品状态失败，状态码: {response.status}, 错误信息: {error_text}")
+                logging.error(
+                    f"重置产品状态失败，状态码: {response.status}, 错误信息: {error_text}"
+                )
                 return None
 
+
 # ... existing code ...
+
 
 def save_workflow(uniqueid, data):
     base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
@@ -613,6 +657,13 @@ def save_workflow(uniqueid, data):
 
 
 def thread_exe():
+    global is_connection
+    logging.info(f"是否已连接过: {is_connection}")
+    if is_connection:
+        return
+    is_connection = True
+    logging.info(f"开启WS、环形队列")
+
     threading.Thread(target=start_websocket_thread, args=(1,), daemon=True).start()
     threading.Thread(target=start_websocket_thread, args=(2,), daemon=True).start()
     executor.submit(run_task_with_loop, task_generate)
@@ -641,7 +692,6 @@ def task_generate():
 async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
     comfyui_address = get_comfyui_address()
 
-    
     data = {
         "prompt": prompt,
         "client_id": client_id,
@@ -813,7 +863,7 @@ def deal_recv_generate_data(recv_data):
     if "medias" in recv_data:
         for media in recv_data["medias"]:
             url_temp = media["url_temp"]
-            local_path = download_media(url_temp,media_save_dir)
+            local_path = download_media(url_temp, media_save_dir)
             if local_path:
                 # 获取文件名及后缀
                 filename = os.path.basename(local_path)
@@ -835,7 +885,7 @@ def deal_recv_generate_data(recv_data):
                 logging.error(f"未找到索引为 {index} 的输出项")
 
     if output:
-        pre_process_data(kaji_generate_record_id,output, workflow)
+        pre_process_data(kaji_generate_record_id, output, workflow)
     else:
         add_task_to_queue(
             {
@@ -849,17 +899,17 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def pre_process_data(kaji_generate_record_id,output, workflow):
+def pre_process_data(kaji_generate_record_id, output, workflow):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
-        #（缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
+        # （缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
         # 这里手动重置随机种子值
         for item in output.values():
-            if item.get('class_type') == 'KSampler':
-                #这个随机数只需要和上次生图不一样就行，seed的位数为15位
-                item['inputs']['seed'] = random.randint(10**14, 10**15 - 1)
+            if item.get("class_type") == "KSampler":
+                # 这个随机数只需要和上次生图不一样就行，seed的位数为15位
+                item["inputs"]["seed"] = random.randint(10**14, 10**15 - 1)
 
-        #使用收到的输入数据生图
+        # 使用收到的输入数据生图
         # 准备任务数据
         task_data = {
             "type": "prpmpt_queue",
