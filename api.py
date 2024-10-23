@@ -406,37 +406,26 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
                 asyncio.create_task(send_heartbeat(websocket)),
             ]
             await asyncio.gather(*tasks)
-    except websockets.ConnectionClosedOK as e:
-        print(f"WebSocket connection closed normally with code {e.code}: {e.reason}")
+    except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
+        print(f"WebSocket connection closed: {e}")
         await reset_product_status(0)  # 设置作品状态为0
-    except websockets.ConnectionClosedError as e:
-        print(f"WebSocket connection closed with error, code {e.code}: {e.reason}")
-        await reset_product_status(0)  # 设置作品状态为0
+        await handle_reconnect(c_flag, reconnect_attempts + 1)  # # 设置作品状态为0
     except Exception as e:
         print(f"WebSocket error: {e}")
         await reset_product_status(0)  # 设置作品状态为0
-    finally:
-        # 确保 websocket 对象在关闭连接之前被正确创建
-        if websocket is not None and websocket.open:
-            await on_websocket_disconnection(websocket)
-            await reset_product_status(1)  # 设置作品状态为0
-        else:
-            print(
-                "WebSocket object was not created successfully; skipping disconnection."
-            )
-            await reset_product_status(0)  # 设置作品状态为0
-    # 判断是否已达到最大重连次数
+
+        
+async def handle_reconnect(c_flag, reconnect_attempts):
     if reconnect_attempts < MAX_RECONNECT_ATTEMPTS:
         print(
             f"Attempting to reconnect in {RECONNECT_DELAY} seconds... (Attempt {reconnect_attempts + 1}/{MAX_RECONNECT_ATTEMPTS})"
         )
         await asyncio.sleep(RECONNECT_DELAY)
-        await handle_websocket(reconnect_attempts + 1)
+        await handle_websocket(c_flag)  # 重新调用连接函数
     else:
         print(
             f"Max reconnect attempts reached ({MAX_RECONNECT_ATTEMPTS}). Giving up on reconnecting."
         )
-
 
 async def process_server_message1(message):
     try:
