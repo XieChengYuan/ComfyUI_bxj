@@ -352,9 +352,7 @@ async def receive_messages(websocket, c_flag):
     try:
         while True:
             try:
-                message = await asyncio.wait_for(
-                    websocket.recv(), timeout=HEART_INTERVAL * 5
-                )
+                message = await websocket.recv()
                 if c_flag == 1:
                     print(f"接收云端ws事件数据: {message}")
                     await process_server_message1(message)
@@ -362,14 +360,12 @@ async def receive_messages(websocket, c_flag):
                     print(f"接收comfyUI生图进度: {message}")
                     await process_server_message2(message)
 
-            except asyncio.TimeoutError:
-                print("No message received within the timeout period. Reconnecting...")
-                raise
             except asyncio.CancelledError:
                 print("Task was cancelled during recv.")
                 break
     except Exception as e:
         print(f"Error in receiving messages 代码异常，必须处理: {e}")
+        raise e
 
 
 async def handle_websocket(c_flag, reconnect_attempts=0):
