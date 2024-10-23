@@ -352,8 +352,9 @@ async def receive_messages(websocket, c_flag):
     try:
         while True:
             try:
+                timeout = HEART_INTERVAL * 5 if c_flag == 1 else None
                 message = await asyncio.wait_for(
-                    websocket.recv(), timeout=HEART_INTERVAL * 5
+                    websocket.recv(), timeout=timeout
                 )
                 if c_flag == 1:
                     print(f"接收云端ws事件数据: {message}")
@@ -413,6 +414,7 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
     except Exception as e:
         print(f"WebSocket error: {e}")
         await reset_product_status(0)  # 设置作品状态为0
+        await handle_reconnect(c_flag, reconnect_attempts + 1)  # # 设置作品状态为0
 
         
 async def handle_reconnect(c_flag, reconnect_attempts):
