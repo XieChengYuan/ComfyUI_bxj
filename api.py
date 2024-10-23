@@ -577,8 +577,6 @@ async def process_server_message2(message):
         }
         await wss_c1.send(json.dumps(executed_success))
         remove_device_prompt(prompt_id)
-        data = message_json.get("data", {})
-        prompt_id = data.get("prompt_id")
         await update_all_prompt_status()
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
