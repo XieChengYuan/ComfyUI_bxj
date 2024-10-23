@@ -352,9 +352,8 @@ async def receive_messages(websocket, c_flag):
     try:
         while True:
             try:
-                timeout = HEART_INTERVAL * 5 if c_flag == 1 else None
                 message = await asyncio.wait_for(
-                    websocket.recv(), timeout=timeout
+                    websocket.recv()
                 )
                 if c_flag == 1:
                     print(f"接收云端ws事件数据: {message}")
