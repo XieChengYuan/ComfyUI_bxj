@@ -52,6 +52,7 @@ MAX_RECONNECT_ATTEMPTS = 3
 HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
+device_prompt_map = {}
 
 
 def download_media(url, save_dir):
@@ -83,6 +84,16 @@ def download_media(url, save_dir):
     except requests.exceptions.RequestException as e:
         print(f"下载媒体文件时发生错误: {e}")
         return None
+    
+def add_device_prompt(device_id, prompt_id):
+    device_prompt_map[device_id] = prompt_id
+
+def remove_device_prompt(prompt_id):
+    for device_id, current_prompt_id in list(device_prompt_map.items()):
+        if current_prompt_id == prompt_id:
+            
+            del device_prompt_map[device_id]
+            break
 
 
 def parse_args():
@@ -444,13 +455,49 @@ async def process_server_message1(message):
     except Exception as e:
         print(f"An error occurred while processing the message: {e}")
 
+async def update_all_prompt_status():
+        qres = await get_queue_from_comfyui()
+        runing_number = 0
+        if qres:
+            for item in qres.get("queue_running", []):
+                if item:
+                    prompt_id = item[1]
+                    cur_q = 0
+                    runing_number = item[0]
+
+                    update_queue = {
+                        "type": "update_queue",
+                        "data": {
+                            "user_id": TEST_UID,
+                            "cur_q": cur_q,
+                            "prompt_id": prompt_id,
+                            "clientType": "plugin",
+                        },
+                    }
+                    await wss_c1.send(json.dumps(update_queue))
+
+            for item in qres.get("queue_pending", []):
+                if item:
+                    prompt_id = item[1]
+                    cur_q = item[0] - runing_number
+
+                    update_queue = {
+                        "type": "update_queue",
+                        "data": {
+                            "user_id": TEST_UID,
+                            "cur_q": cur_q,
+                            "prompt_id": prompt_id,
+                            "clientType": "plugin",
+                        },
+                    }
+                    await wss_c1.send(json.dumps(update_queue))
+
 
 async def process_server_message2(message):
     global last_value, last_time
     message_json = json.loads(message)
     message_type = message_json.get("type")
     if message_type == "status":
-        # 处理状态更新
         pass
     elif message_type == "execution_start":
         pass
@@ -458,9 +505,15 @@ async def process_server_message2(message):
         pass
     elif message_type == "progress":
         progress_data = message_json.get("data", {})
+        prompt_id = progress_data.get("prompt_id")
+
+        if prompt_id not in device_prompt_map.values():
+            return
+
+        print("device_prompt_map = {}:",device_prompt_map)
         value = progress_data.get("value")
         max_value = progress_data.get("max")
-        prompt_id = progress_data.get("prompt_id")
+       
         current_time = time.time()  # 获取当前时间
         # 计算剩余时间
         if last_value is not None and last_time is not None:
@@ -523,6 +576,10 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(executed_success))
+        remove_device_prompt(prompt_id)
+        data = message_json.get("data", {})
+        prompt_id = data.get("prompt_id")
+        await update_all_prompt_status()
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
     # 可以根据需要添加更多消息类型的处理
@@ -617,10 +674,6 @@ async def reset_product_status(status):
                 )
                 return None
 
-
-# ... existing code ...
-
-
 def save_workflow(uniqueid, data):
     base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
 
@@ -701,6 +754,25 @@ async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
                 )
                 return None
 
+async def get_queue_from_comfyui():
+    comfyui_address = get_comfyui_address()
+
+    # 构建请求的 URL
+    url = f"{comfyui_address}/queue"
+    logging.info(f"请求 ComfyUI 的队列数据: {url}")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                response_json = await response.json()
+                logging.info(f"/queue 接口出参: {response_json}")
+                return response_json
+            else:
+                error_text = await response.text()
+                logging.error(
+                    f"获取队列失败，状态码: {response.status}, 错误信息: {error_text}"
+                )
+                return None
 
 @DeprecationWarning
 async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
@@ -777,6 +849,21 @@ async def get_generated_image(filename):
                         logging.info(f"生产成功，返回值: {result}")
                         return result.get("data").get("tempUrl")
 
+def find_prompt_status(response_data, prompt_id):
+    runing_number = 0
+    # 检查 queue_running
+    for item in response_data.get("queue_running", []):
+        runing_number = item[0]
+        if item[1] == prompt_id: 
+            return {"cur_q": 0, "q_status": "queue_running"}
+
+    # 检查 queue_pending
+    for item in response_data.get("queue_pending", []):
+        if item[1] == prompt_id: 
+            cur_q = item[0] - runing_number
+            return {"cur_q": cur_q, "q_status": "queue_pending"}
+
+    return None 
 
 def run_gc_task(task_data):
     asyncio.run(run_gc_task_async(task_data))
@@ -795,10 +882,11 @@ async def run_gc_task_async(task_data):
         if "client_id" not in task_data or "prompt" not in task_data:
             logging.error(f"任务数据不完整: {task_data}")
             return
-        logging.info(f"工作队列获取任务-开始执行。")
+        logging.info(f"工作队列获取任务-开始执行: {task_data}")
         prompt = task_data["prompt"]
         client_id = task_data["client_id"]
         kaji_generate_record_id = task_data["kaji_generate_record_id"]
+        device_id = task_data["device_id"]
         uniqueid = task_data.get("uniqueid")
         workflow = get_workflow(uniqueid) if uniqueid else None
 
@@ -808,6 +896,7 @@ async def run_gc_task_async(task_data):
         result = await send_prompt_to_comfyui(prompt, client_id, workflow)
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
+            add_device_prompt(device_id,prompt_id)
             # 存储到云端，表明改生图任务提交成功，等待最终结果中
             submit_success = {
                 "type": "submit_success",
@@ -823,8 +912,23 @@ async def run_gc_task_async(task_data):
                 },
             }
             await wss_c1.send(json.dumps(submit_success))
-
             logging.info(f"任务成功提交，prompt_id: {result['prompt_id']}")
+
+            qres = await get_queue_from_comfyui()
+            if qres:
+                cur_queue_info = find_prompt_status(qres, prompt_id)
+                print(f"当前队列信息: {cur_queue_info}")
+                update_queue = {
+                    "type": "update_queue",
+                    "data": {
+                        "user_id": TEST_UID,
+                        "cur_q": cur_queue_info.get('cur_q'),
+                        "prompt_id": prompt_id,
+                        "clientType": "plugin",
+                },
+            }
+            await wss_c1.send(json.dumps(update_queue))
+            logging.info(f"任务排队状态： {cur_queue_info}")
         else:
             logging.error("任务提交失败")
 
@@ -841,8 +945,8 @@ def add_task_to_queue(task_data):
 
 def deal_recv_generate_data(recv_data):
     uniqueid = recv_data["uniqueid"]
-
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
+    device_id = recv_data["device_id"]
     output = get_output(uniqueid + ".json")
     workflow = get_workflow(uniqueid + ".json")
 
@@ -872,7 +976,7 @@ def deal_recv_generate_data(recv_data):
                 logging.error(f"未找到索引为 {index} 的输出项")
 
     if output:
-        pre_process_data(kaji_generate_record_id, output, workflow)
+        pre_process_data(kaji_generate_record_id,device_id, output, workflow)
     else:
         add_task_to_queue(
             {
@@ -886,7 +990,7 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def pre_process_data(kaji_generate_record_id, output, workflow):
+def pre_process_data(kaji_generate_record_id, device_id,output, workflow):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         # （缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
@@ -902,6 +1006,7 @@ def pre_process_data(kaji_generate_record_id, output, workflow):
             "type": "prpmpt_queue",
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
+                "device_id": device_id,
                 "client_id": cur_client_id,
                 "prompt": output,
             },
