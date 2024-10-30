@@ -84,14 +84,16 @@ def download_media(url, save_dir):
     except requests.exceptions.RequestException as e:
         print(f"下载媒体文件时发生错误: {e}")
         return None
-    
+
+
 def add_device_prompt(device_id, prompt_id):
     device_prompt_map[device_id] = prompt_id
+
 
 def remove_device_prompt(prompt_id):
     for device_id, current_prompt_id in list(device_prompt_map.items()):
         if current_prompt_id == prompt_id:
-            
+
             del device_prompt_map[device_id]
             break
 
@@ -423,7 +425,6 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
         await handle_reconnect(c_flag, reconnect_attempts + 1)
 
 
-        
 async def handle_reconnect(c_flag, reconnect_attempts):
     if reconnect_attempts < MAX_RECONNECT_ATTEMPTS:
         print(
@@ -435,6 +436,7 @@ async def handle_reconnect(c_flag, reconnect_attempts):
         print(
             f"Max reconnect attempts reached ({MAX_RECONNECT_ATTEMPTS}). Giving up on reconnecting."
         )
+
 
 async def process_server_message1(message):
     try:
@@ -455,42 +457,43 @@ async def process_server_message1(message):
     except Exception as e:
         print(f"An error occurred while processing the message: {e}")
 
+
 async def update_all_prompt_status():
-        qres = await get_queue_from_comfyui()
-        runing_number = 0
-        if qres:
-            for item in qres.get("queue_running", []):
-                if item:
-                    prompt_id = item[1]
-                    cur_q = 0
-                    runing_number = item[0]
+    qres = await get_queue_from_comfyui()
+    runing_number = 0
+    if qres:
+        for item in qres.get("queue_running", []):
+            if item:
+                prompt_id = item[1]
+                cur_q = 0
+                runing_number = item[0]
 
-                    update_queue = {
-                        "type": "update_queue",
-                        "data": {
-                            "user_id": TEST_UID,
-                            "cur_q": cur_q,
-                            "prompt_id": prompt_id,
-                            "clientType": "plugin",
-                        },
-                    }
-                    await wss_c1.send(json.dumps(update_queue))
+                update_queue = {
+                    "type": "update_queue",
+                    "data": {
+                        "user_id": TEST_UID,
+                        "cur_q": cur_q,
+                        "prompt_id": prompt_id,
+                        "clientType": "plugin",
+                    },
+                }
+                await wss_c1.send(json.dumps(update_queue))
 
-            for item in qres.get("queue_pending", []):
-                if item:
-                    prompt_id = item[1]
-                    cur_q = item[0] - runing_number
+        for item in qres.get("queue_pending", []):
+            if item:
+                prompt_id = item[1]
+                cur_q = item[0] - runing_number
 
-                    update_queue = {
-                        "type": "update_queue",
-                        "data": {
-                            "user_id": TEST_UID,
-                            "cur_q": cur_q,
-                            "prompt_id": prompt_id,
-                            "clientType": "plugin",
-                        },
-                    }
-                    await wss_c1.send(json.dumps(update_queue))
+                update_queue = {
+                    "type": "update_queue",
+                    "data": {
+                        "user_id": TEST_UID,
+                        "cur_q": cur_q,
+                        "prompt_id": prompt_id,
+                        "clientType": "plugin",
+                    },
+                }
+                await wss_c1.send(json.dumps(update_queue))
 
 
 async def process_server_message2(message):
@@ -510,10 +513,10 @@ async def process_server_message2(message):
         if prompt_id not in device_prompt_map.values():
             return
 
-        print("device_prompt_map = {}:",device_prompt_map)
+        print("device_prompt_map = {}:", device_prompt_map)
         value = progress_data.get("value")
         max_value = progress_data.get("max")
-       
+
         current_time = time.time()  # 获取当前时间
         # 计算剩余时间
         if last_value is not None and last_time is not None:
@@ -636,8 +639,8 @@ async def kaji_r(req):
 
                     if PRODUCT_ID is None:
                         raise ValueError("未能从响应中获取 PRODUCT_ID")
-                    if res_js.get("success"):
-                        thread_exe()
+
+                    thread_exe()
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
                     return web.Response(
@@ -671,6 +674,7 @@ async def reset_product_status(status):
                     f"重置产品状态失败，状态码: {response.status}, 错误信息: {error_text}"
                 )
                 return None
+
 
 def save_workflow(uniqueid, data):
     base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
@@ -752,6 +756,7 @@ async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
                 )
                 return None
 
+
 async def get_queue_from_comfyui():
     comfyui_address = get_comfyui_address()
 
@@ -771,6 +776,7 @@ async def get_queue_from_comfyui():
                     f"获取队列失败，状态码: {response.status}, 错误信息: {error_text}"
                 )
                 return None
+
 
 @DeprecationWarning
 async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
@@ -847,21 +853,23 @@ async def get_generated_image(filename):
                         logging.info(f"生产成功，返回值: {result}")
                         return result.get("data").get("tempUrl")
 
+
 def find_prompt_status(response_data, prompt_id):
     runing_number = 0
     # 检查 queue_running
     for item in response_data.get("queue_running", []):
         runing_number = item[0]
-        if item[1] == prompt_id: 
+        if item[1] == prompt_id:
             return {"cur_q": 0, "q_status": "queue_running"}
 
     # 检查 queue_pending
     for item in response_data.get("queue_pending", []):
-        if item[1] == prompt_id: 
+        if item[1] == prompt_id:
             cur_q = item[0] - runing_number
             return {"cur_q": cur_q, "q_status": "queue_pending"}
 
-    return None 
+    return None
+
 
 def run_gc_task(task_data):
     asyncio.run(run_gc_task_async(task_data))
@@ -894,7 +902,7 @@ async def run_gc_task_async(task_data):
         result = await send_prompt_to_comfyui(prompt, client_id, workflow)
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
-            add_device_prompt(device_id,prompt_id)
+            add_device_prompt(device_id, prompt_id)
             # 存储到云端，表明改生图任务提交成功，等待最终结果中
             submit_success = {
                 "type": "submit_success",
@@ -920,11 +928,11 @@ async def run_gc_task_async(task_data):
                     "type": "update_queue",
                     "data": {
                         "user_id": TEST_UID,
-                        "cur_q": cur_queue_info.get('cur_q'),
+                        "cur_q": cur_queue_info.get("cur_q"),
                         "prompt_id": prompt_id,
                         "clientType": "plugin",
-                },
-            }
+                    },
+                }
             await wss_c1.send(json.dumps(update_queue))
             logging.info(f"任务排队状态： {cur_queue_info}")
         else:
@@ -974,7 +982,7 @@ def deal_recv_generate_data(recv_data):
                 logging.error(f"未找到索引为 {index} 的输出项")
 
     if output:
-        pre_process_data(kaji_generate_record_id,device_id, output, workflow)
+        pre_process_data(kaji_generate_record_id, device_id, output, workflow)
     else:
         add_task_to_queue(
             {
@@ -988,7 +996,7 @@ def deal_recv_generate_data(recv_data):
         )
 
 
-def pre_process_data(kaji_generate_record_id, device_id,output, workflow):
+def pre_process_data(kaji_generate_record_id, device_id, output, workflow):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         # （缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）

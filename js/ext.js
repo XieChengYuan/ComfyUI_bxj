@@ -56,7 +56,7 @@ async function handleDeployButtonClick(app) {
             console.log("body:", uploadData)
             const res = await request(END_POITN_URL, uploadData);
             console.log("response:", res)
-            if (res && res.data && res.success) {
+            if (res && res.data && res.data._id) {
                 showMsgDialog('上传成功');
                 console.log('上传返回的数据:', res.data);
             } else {
