@@ -3,7 +3,7 @@ import { api } from '../../../scripts/api.js'
 import { $el } from '../../../scripts/ui.js'
 
 let isLoading = false;
-const TEST_UID = "66c1f5419d9f915ad22bf864";
+const TEST_UID = "66c981879d9f915ad268680a";
 const END_POITN_URL = "/kaji-upload-file/uploadProduct";
 function createButtonWithClickHandler(buttonClass, buttonText, clickHandler) {
     return $el(`button.${buttonClass}`, {

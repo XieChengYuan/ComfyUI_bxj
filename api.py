@@ -35,11 +35,11 @@ logging.basicConfig(
 
 DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
-END_POINT_URL3 = "/kaji-storage/uploadFile"
+END_POINT_URL3 = "/kaji-upload-file/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL4 = "/reset-product-status/resetProductStatus"
-TEST_UID = "66c1f5419d9f915ad22bf864"
+TEST_UID = "66c981879d9f915ad268680a"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -52,7 +52,9 @@ MAX_RECONNECT_ATTEMPTS = 3
 HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
-device_prompt_map = {}
+
+PRODUCT_ID = None
+UNIQUE_WORKFLOW_ID = None
 
 
 def download_media(url, save_dir):
@@ -84,18 +86,6 @@ def download_media(url, save_dir):
     except requests.exceptions.RequestException as e:
         print(f"下载媒体文件时发生错误: {e}")
         return None
-
-
-def add_device_prompt(device_id, prompt_id):
-    device_prompt_map[device_id] = prompt_id
-
-
-def remove_device_prompt(prompt_id):
-    for device_id, current_prompt_id in list(device_prompt_map.items()):
-        if current_prompt_id == prompt_id:
-
-            del device_prompt_map[device_id]
-            break
 
 
 def parse_args():
@@ -391,23 +381,23 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
         else:
             raise ValueError("无效的 c_flag 值")
         async with websockets.connect(url) as websocket:
-            reconnect_attempts = 0
+            # reconnect_attempts = 0
             if c_flag == 1:
                 wss_c1 = websocket
                 print(f"websocket connected to WebSocket server at {url}")
-                await reset_product_status(1)  # 设置作品状态为0
-                initial_message = {
-                    "type": "initial_request",
-                    "data": {
-                        "uin_hash": generate_unique_hash(
-                            get_mac_address(), get_port_from_cmd()
-                        ),
-                        "user_id": TEST_UID,
-                        "clientType": "plugin",
-                        "connCode": 1,
-                    },
-                }
-                await websocket.send(json.dumps(initial_message))
+                # await reset_product_status(1)  # 设置作品通讯状态为1 （废弃此逻辑,发起连接时，就需要传标识）
+                # initial_message = {
+                #     "type": "initial_request",
+                #     "data": {
+                #         "uin_hash": generate_unique_hash(
+                #             get_mac_address(), get_port_from_cmd()
+                #         ),
+                #         "user_id": TEST_UID,
+                #         "clientType": "plugin",
+                #         "connCode": 1,
+                #     },
+                # }
+                # await websocket.send(json.dumps(initial_message))
             elif c_flag == 2:
                 wss_c2 = websocket
             tasks = [
@@ -417,11 +407,11 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
             await asyncio.gather(*tasks)
     except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
         print(f"WebSocket connection closed: {e}")
-        await reset_product_status(0)  # 设置作品状态为0
+        # await reset_product_status(0)  # 设置作品状态为0
         await handle_reconnect(c_flag, reconnect_attempts + 1)  # # 设置作品状态为0
     except Exception as e:
         print(f"WebSocket error: {e}")
-        await reset_product_status(0)  # 设置作品状态为0
+        # await reset_product_status(0)  # 设置作品状态为0
         await handle_reconnect(c_flag, reconnect_attempts + 1)
 
 
@@ -431,7 +421,7 @@ async def handle_reconnect(c_flag, reconnect_attempts):
             f"Attempting to reconnect in {RECONNECT_DELAY} seconds... (Attempt {reconnect_attempts + 1}/{MAX_RECONNECT_ATTEMPTS})"
         )
         await asyncio.sleep(RECONNECT_DELAY)
-        await handle_websocket(c_flag)  # 重新调用连接函数
+        await handle_websocket(c_flag, reconnect_attempts)  # 重新调用连接函数
     else:
         print(
             f"Max reconnect attempts reached ({MAX_RECONNECT_ATTEMPTS}). Giving up on reconnecting."
@@ -458,42 +448,47 @@ async def process_server_message1(message):
         print(f"An error occurred while processing the message: {e}")
 
 
-async def update_all_prompt_status():
+# 查出新任务的排队情况
+async def find_prompt_status(prompt_id):
     qres = await get_queue_from_comfyui()
     runing_number = 0
     if qres:
+        # 检查 queue_running
+        for item in qres.get("queue_running", []):
+            runing_number = item[0]
+            if item[1] == prompt_id:
+                return {"cur_q": 0, "q_status": "queue_running"}
+
+        # 检查 queue_pending
+        for item in qres.get("queue_pending", []):
+            if item[1] == prompt_id:
+                cur_q = item[0] - runing_number
+                return {"cur_q": cur_q, "q_status": "queue_pending"}
+    return None
+
+
+# 发送所有任务的排队情况
+async def update_all_prompt_status():
+    qres = await get_queue_from_comfyui()
+
+    if qres:
+        runing_number = 0
+        queue_info = {}
         for item in qres.get("queue_running", []):
             if item:
-                prompt_id = item[1]
-                cur_q = 0
                 runing_number = item[0]
-
-                update_queue = {
-                    "type": "update_queue",
-                    "data": {
-                        "user_id": TEST_UID,
-                        "cur_q": cur_q,
-                        "prompt_id": prompt_id,
-                        "clientType": "plugin",
-                    },
-                }
-                await wss_c1.send(json.dumps(update_queue))
-
         for item in qres.get("queue_pending", []):
             if item:
                 prompt_id = item[1]
                 cur_q = item[0] - runing_number
+                queue_info[prompt_id] = cur_q
 
-                update_queue = {
-                    "type": "update_queue",
-                    "data": {
-                        "user_id": TEST_UID,
-                        "cur_q": cur_q,
-                        "prompt_id": prompt_id,
-                        "clientType": "plugin",
-                    },
-                }
-                await wss_c1.send(json.dumps(update_queue))
+        if queue_info:
+            update_queue = {
+                "type": "update_queue",
+                "data": {"queue_info": queue_info},
+            }
+            await wss_c1.send(json.dumps(update_queue))
 
 
 async def process_server_message2(message):
@@ -503,17 +498,20 @@ async def process_server_message2(message):
     if message_type == "status":
         pass
     elif message_type == "execution_start":
+        # 该任务开始执行，进行中...
         pass
+    elif message_type == "execution_cached":
+        # 该任务被缓存好的所有节点数组
+        pass
+
     elif message_type == "executing":
+        # 该任务某个节点正在执行中
         pass
     elif message_type == "progress":
+        # 该任务某个节点的具体的执行进度，与executing事件对应（往往最耗时的节点是ksample那个环节）
         progress_data = message_json.get("data", {})
         prompt_id = progress_data.get("prompt_id")
 
-        if prompt_id not in device_prompt_map.values():
-            return
-
-        print("device_prompt_map = {}:", device_prompt_map)
         value = progress_data.get("value")
         max_value = progress_data.get("max")
 
@@ -543,7 +541,6 @@ async def process_server_message2(message):
             progress_message = {
                 "type": "progress_update",
                 "data": {
-                    "user_id": TEST_UID,
                     "remaining_time": remaining_time,  # 发送剩余时间
                     "prompt_id": prompt_id,
                     "value": value,
@@ -554,11 +551,10 @@ async def process_server_message2(message):
             print(f"发送进度更新: {progress_message}")
         else:
             print("wss_c1 连接未建立，无法发送进度消息")
-    elif message_type == "execution_success":
-        pass
-    elif message_type == "execution_cached":
-        pass
+
     elif message_type == "executed":
+        # TODO 不是这样拿结果图...
+        # 该任务某个节点执行结束。也就是最后保存结果节点。从中拿到结果。
         prompt_id = message_json["data"]["prompt_id"]
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
@@ -567,11 +563,6 @@ async def process_server_message2(message):
         executed_success = {
             "type": "executed_success",
             "data": {
-                "uin_hash": generate_unique_hash(
-                    get_mac_address(), get_port_from_cmd()
-                ),
-                "user_id": TEST_UID,
-                # "kaji_generate_record_id": kaji_generate_record_id,
                 "prompt_id": prompt_id,
                 "media_link": media_link,
                 "clientType": "plugin",
@@ -579,7 +570,8 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(executed_success))
-        remove_device_prompt(prompt_id)
+    elif message_type == "execution_success":
+        # 该任务工作流所有节点完成，任务也完成。此时可以通知下
         await update_all_prompt_status()
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
@@ -600,7 +592,12 @@ def start_websocket_thread(c_flag):
 
 async def get_wss_server_url():
     async with aiohttp.ClientSession() as session:
-        async with session.post(BASE_URL + END_POINT_URL2, json={}) as response:
+        payload = {
+            "product_id": PRODUCT_ID,
+            "user_id": TEST_UID,
+            "clientType": "plugin",
+        }
+        async with session.post(BASE_URL + END_POINT_URL2, json=payload) as response:
             try:
                 res = await response.json()
                 wss_server_url = res.get("data")
@@ -616,6 +613,7 @@ async def get_wss_server_url():
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
     global PRODUCT_ID
+    global UNIQUE_WORKFLOW_ID
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
         oldData = jsonData.get("uploadData")
@@ -634,12 +632,18 @@ async def kaji_r(req):
                 try:
                     res = await response.text()
                     res_js = json.loads(res)
-                    PRODUCT_ID = res_js.get("data", {}).get("_id", None)
                     print("res_js", res_js)
 
+                    data = res_js.get("data", {})
+                    PRODUCT_ID = data.get("_id", None)
                     if PRODUCT_ID is None:
                         raise ValueError("未能从响应中获取 PRODUCT_ID")
 
+                    audit_status = data.get("audit_status", None)
+                    if audit_status != 1:
+                        raise ValueError("标题或图片审核未通过，涉嫌违规")
+
+                    UNIQUE_WORKFLOW_ID = uniqueid
                     thread_exe()
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
@@ -854,23 +858,6 @@ async def get_generated_image(filename):
                         return result.get("data").get("tempUrl")
 
 
-def find_prompt_status(response_data, prompt_id):
-    runing_number = 0
-    # 检查 queue_running
-    for item in response_data.get("queue_running", []):
-        runing_number = item[0]
-        if item[1] == prompt_id:
-            return {"cur_q": 0, "q_status": "queue_running"}
-
-    # 检查 queue_pending
-    for item in response_data.get("queue_pending", []):
-        if item[1] == prompt_id:
-            cur_q = item[0] - runing_number
-            return {"cur_q": cur_q, "q_status": "queue_pending"}
-
-    return None
-
-
 def run_gc_task(task_data):
     asyncio.run(run_gc_task_async(task_data))
 
@@ -885,56 +872,35 @@ def validate_prompt(prompt):
 
 async def run_gc_task_async(task_data):
     try:
+        logging.info(f"工作队列获取任务-开始执行: {task_data}")
         if "client_id" not in task_data or "prompt" not in task_data:
             logging.error(f"任务数据不完整: {task_data}")
             return
-        logging.info(f"工作队列获取任务-开始执行: {task_data}")
         prompt = task_data["prompt"]
         client_id = task_data["client_id"]
         kaji_generate_record_id = task_data["kaji_generate_record_id"]
-        device_id = task_data["device_id"]
-        uniqueid = task_data.get("uniqueid")
-        workflow = get_workflow(uniqueid) if uniqueid else None
 
         if not validate_prompt(prompt):
             logging.error("prompt 数据无效")
             return
-        result = await send_prompt_to_comfyui(prompt, client_id, workflow)
+
+        result = await send_prompt_to_comfyui(prompt, client_id)
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
-            add_device_prompt(device_id, prompt_id)
-            # 存储到云端，表明改生图任务提交成功，等待最终结果中
+            # 存储到云端，表明此生图任务提交成功，等待最终结果中
+            cur_queue_info = await find_prompt_status(prompt_id)
+            logging.info(f"任务排队状态： {cur_queue_info}")
+
             submit_success = {
                 "type": "submit_success",
                 "data": {
-                    "uin_hash": generate_unique_hash(
-                        get_mac_address(), get_port_from_cmd()
-                    ),
-                    "user_id": TEST_UID,
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
-                    "clientType": "plugin",
-                    "connCode": 1,
+                    "cur_q": cur_queue_info.get("cur_q"),
                 },
             }
             await wss_c1.send(json.dumps(submit_success))
             logging.info(f"任务成功提交，prompt_id: {result['prompt_id']}")
-
-            qres = await get_queue_from_comfyui()
-            if qres:
-                cur_queue_info = find_prompt_status(qres, prompt_id)
-                print(f"当前队列信息: {cur_queue_info}")
-                update_queue = {
-                    "type": "update_queue",
-                    "data": {
-                        "user_id": TEST_UID,
-                        "cur_q": cur_queue_info.get("cur_q"),
-                        "prompt_id": prompt_id,
-                        "clientType": "plugin",
-                    },
-                }
-            await wss_c1.send(json.dumps(update_queue))
-            logging.info(f"任务排队状态： {cur_queue_info}")
         else:
             logging.error("任务提交失败")
 
@@ -950,11 +916,13 @@ def add_task_to_queue(task_data):
 
 
 def deal_recv_generate_data(recv_data):
-    uniqueid = recv_data["uniqueid"]
+    # TODO 此处的 uniqueid 一定要服务端传过来吗？留在本地全局变量中
+    # uniqueid = recv_data["uniqueid"]
+    uniqueid = UNIQUE_WORKFLOW_ID
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
-    device_id = recv_data["device_id"]
+
+    # device_id = recv_data["device_id"]
     output = get_output(uniqueid + ".json")
-    workflow = get_workflow(uniqueid + ".json")
 
     # 检查消息中是否包含 medias,获取下载的local_path路径，替换output中的图片名为图片输入
     if "medias" in recv_data:
@@ -981,22 +949,22 @@ def deal_recv_generate_data(recv_data):
             else:
                 logging.error(f"未找到索引为 {index} 的输出项")
 
-    if output:
-        pre_process_data(kaji_generate_record_id, device_id, output, workflow)
-    else:
-        add_task_to_queue(
-            {
-                "type": "prompt_error",
-                "data": {
-                    "uniqueid": uniqueid,
-                    "msg": "作品工作流找不到了",
-                    "error_code": 1,
-                },
-            }
-        )
+    # if output:
+    pre_process_data(kaji_generate_record_id, output)
+    # else:
+    #     add_task_to_queue(
+    #         {
+    #             "type": "prompt_error",
+    #             "data": {
+    #                 "uniqueid": uniqueid,
+    #                 "msg": "作品工作流找不到了",
+    #                 "error_code": 1,
+    #             },
+    #         }
+    #     )
 
 
-def pre_process_data(kaji_generate_record_id, device_id, output, workflow):
+def pre_process_data(kaji_generate_record_id, output):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         # （缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
@@ -1012,7 +980,6 @@ def pre_process_data(kaji_generate_record_id, device_id, output, workflow):
             "type": "prpmpt_queue",
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
-                "device_id": device_id,
                 "client_id": cur_client_id,
                 "prompt": output,
             },
