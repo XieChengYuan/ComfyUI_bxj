@@ -977,7 +977,7 @@ def pre_process_data(kaji_generate_record_id, output):
         # 使用收到的输入数据生图
         # 准备任务数据
         task_data = {
-            "type": "prpmpt_queue",
+            "type": "prompt_queue",
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
                 "client_id": cur_client_id,
