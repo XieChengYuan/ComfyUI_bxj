@@ -52,7 +52,8 @@ MAX_RECONNECT_ATTEMPTS = 3
 HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
-
+device_prompt_map = {}
+keep_prompt_id_list = []
 PRODUCT_ID = None
 UNIQUE_WORKFLOW_ID = None
 
@@ -151,6 +152,41 @@ class ManagedThreadPoolExecutor(ThreadPoolExecutor):
 
 # 创建线程池执行器
 executor = ManagedThreadPoolExecutor(max_workers=20)
+
+
+# 定义一个双向字典，维护正在等待进度（包括排队人数）的生成记录
+# key: generate_record_id, value: prompt_id
+class BidirectionalDict:
+    def __init__(self):
+        self.forward = {}
+        self.backward = {}
+
+    def add(self, key, value):
+        self.forward[key] = value
+        self.backward[value] = key
+
+    def has_key(self, key):
+        return key in self.forward
+
+    def get_value_by_key(self, key):
+        return self.forward.get(key)
+
+    def remove_key(self, key):
+        value = self.forward.pop("not_exist_key", None)
+        self.backward.pop(value, None)
+
+    def has_value(self, value):
+        return value in self.backward
+
+    def get_key_by_value(self, value):
+        return self.backward.get(value)
+
+    def remove_value(self, value):
+        key = self.backward.pop(value, None)
+        self.forward.pop(key, None)
+
+
+bd = BidirectionalDict()
 
 
 def is_image_file(image_path):
@@ -442,6 +478,10 @@ async def process_server_message1(message):
             print("收到生图消息", data)
             deal_recv_generate_data(data)
 
+        elif message_type == "cancel_listen":
+            print("任务进度监听取消", data)
+            bd.remove_key(data.kaji_generate_record_id)
+
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
     except Exception as e:
@@ -480,6 +520,9 @@ async def update_all_prompt_status():
         for item in qres.get("queue_pending", []):
             if item:
                 prompt_id = item[1]
+                # 判断是否还需要发送信息给前端用户
+                if not bd.has_value(prompt_id):
+                    continue
                 cur_q = item[0] - runing_number
                 queue_info[prompt_id] = cur_q
 
@@ -511,6 +554,10 @@ async def process_server_message2(message):
         # 该任务某个节点的具体的执行进度，与executing事件对应（往往最耗时的节点是ksample那个环节）
         progress_data = message_json.get("data", {})
         prompt_id = progress_data.get("prompt_id")
+
+        # 判断是否还需要发送信息给前端用户
+        if not bd.has_value(prompt_id):
+            return
 
         value = progress_data.get("value")
         max_value = progress_data.get("max")
@@ -887,10 +934,14 @@ async def run_gc_task_async(task_data):
         result = await send_prompt_to_comfyui(prompt, client_id)
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
-            # 存储到云端，表明此生图任务提交成功，等待最终结果中
+
+            # 本地维护关系
+            bd.add(kaji_generate_record_id, prompt_id)
+            # 存储到云端，表明此生图任务提交成功，让服务端等待这个prompt_id最终结果(任务生图进度的数据发不发，会根据本地保存的prompt_id对应的前端用户ws)
             cur_queue_info = await find_prompt_status(prompt_id)
             logging.info(f"任务排队状态： {cur_queue_info}")
 
+            # 服务器也维护关系
             submit_success = {
                 "type": "submit_success",
                 "data": {
