@@ -52,8 +52,6 @@ MAX_RECONNECT_ATTEMPTS = 3
 HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
-device_prompt_map = {}
-keep_prompt_id_list = []
 PRODUCT_ID = None
 UNIQUE_WORKFLOW_ID = None
 
@@ -393,10 +391,10 @@ async def receive_messages(websocket, c_flag):
             try:
                 message = await websocket.recv()
                 if c_flag == 1:
-                    print(f"接收云端ws事件数据: {message}")
+                    print(f"接收支付宝云端ws事件数据: {message}")
                     await process_server_message1(message)
                 elif c_flag == 2:
-                    print(f"接收comfyUI生图进度: {message}")
+                    print(f"接收comfyUI的生图任务信息: {message}")
                     await process_server_message2(message)
 
             except asyncio.CancelledError:
@@ -412,28 +410,14 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
     try:
         if c_flag == 1:
             url = await get_wss_server_url()
+            print(f"websocket connected to WebSocket server at {url}")
         elif c_flag == 2:
             url = cfy_ws_url
         else:
             raise ValueError("无效的 c_flag 值")
         async with websockets.connect(url) as websocket:
-            # reconnect_attempts = 0
             if c_flag == 1:
                 wss_c1 = websocket
-                print(f"websocket connected to WebSocket server at {url}")
-                # await reset_product_status(1)  # 设置作品通讯状态为1 （废弃此逻辑,发起连接时，就需要传标识）
-                # initial_message = {
-                #     "type": "initial_request",
-                #     "data": {
-                #         "uin_hash": generate_unique_hash(
-                #             get_mac_address(), get_port_from_cmd()
-                #         ),
-                #         "user_id": TEST_UID,
-                #         "clientType": "plugin",
-                #         "connCode": 1,
-                #     },
-                # }
-                # await websocket.send(json.dumps(initial_message))
             elif c_flag == 2:
                 wss_c2 = websocket
             tasks = [
@@ -464,6 +448,7 @@ async def handle_reconnect(c_flag, reconnect_attempts):
         )
 
 
+# 咔叽服务端的数据
 async def process_server_message1(message):
     try:
         # 尝试将接收到的消息解析为 JSON 对象
@@ -534,6 +519,7 @@ async def update_all_prompt_status():
             await wss_c1.send(json.dumps(update_queue))
 
 
+# comfyUI 的 任务数据
 async def process_server_message2(message):
     global last_value, last_time
     message_json = json.loads(message)
@@ -793,12 +779,12 @@ async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
     if workflow and "extra_data" in workflow:
         data["extra_data"] = workflow["extra_data"]
 
-    logging.info(f"/prompt 接口入参: {data}")
+    logging.info(f"核心接口 /prompt的接口入参: {data}")
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{comfyui_address}/prompt", json=data) as response:
             if response.status == 200:
                 response_json = await response.json()
-                logging.info(f"/prompt 接口出参: {response_json}")
+                logging.info(f"核心接口 /prompt的接口出参: {response_json}")
                 return response_json
             else:
                 error_text = await response.text()
@@ -935,11 +921,12 @@ async def run_gc_task_async(task_data):
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
 
+            # 0：代表此前空闲，将会立即开始
+            number = result["number"]
+
             # 本地维护关系
             bd.add(kaji_generate_record_id, prompt_id)
             # 存储到云端，表明此生图任务提交成功，让服务端等待这个prompt_id最终结果(任务生图进度的数据发不发，会根据本地保存的prompt_id对应的前端用户ws)
-            cur_queue_info = await find_prompt_status(prompt_id)
-            logging.info(f"任务排队状态： {cur_queue_info}")
 
             # 服务器也维护关系
             submit_success = {
@@ -947,7 +934,7 @@ async def run_gc_task_async(task_data):
                 "data": {
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
-                    "cur_q": cur_queue_info.get("cur_q"),
+                    "cur_q": number,
                 },
             }
             await wss_c1.send(json.dumps(submit_success))
@@ -999,20 +986,7 @@ def deal_recv_generate_data(recv_data):
                 output[index]["inputs"]["text"] = input_des
             else:
                 logging.error(f"未找到索引为 {index} 的输出项")
-
-    # if output:
     pre_process_data(kaji_generate_record_id, output)
-    # else:
-    #     add_task_to_queue(
-    #         {
-    #             "type": "prompt_error",
-    #             "data": {
-    #                 "uniqueid": uniqueid,
-    #                 "msg": "作品工作流找不到了",
-    #                 "error_code": 1,
-    #             },
-    #         }
-    #     )
 
 
 def pre_process_data(kaji_generate_record_id, output):
