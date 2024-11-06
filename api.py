@@ -170,7 +170,7 @@ class BidirectionalDict:
         return self.forward.get(key)
 
     def remove_key(self, key):
-        value = self.forward.pop("not_exist_key", None)
+        value = self.forward.pop(key, None)
         self.backward.pop(value, None)
 
     def has_value(self, value):
@@ -465,7 +465,7 @@ async def process_server_message1(message):
 
         elif message_type == "cancel_listen":
             print("任务进度监听取消", data)
-            bd.remove_key(data.kaji_generate_record_id)
+            bd.remove_key(data["kaji_generate_record_id"])
 
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
