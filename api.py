@@ -653,9 +653,13 @@ async def kaji_r(req):
                     if PRODUCT_ID is None:
                         raise ValueError("未能从响应中获取 PRODUCT_ID")
 
-                    audit_status = data.get("audit_status", None)
-                    if audit_status != 1:
-                        raise ValueError("标题或图片审核未通过，涉嫌违规")
+                    txt_audit_status = data.get("txt_audit_status", None)
+                    if txt_audit_status != 1:
+                        raise ValueError("标题或描述审核未通过，涉嫌违规")
+
+                    image_audit_status = data.get("image_audit_status", None)
+                    if image_audit_status != 1:
+                        raise ValueError("图片审核未通过，涉嫌违规")
 
                     UNIQUE_WORKFLOW_ID = uniqueid
                     thread_exe()
