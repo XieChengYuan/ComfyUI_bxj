@@ -473,6 +473,25 @@ async def process_server_message1(message):
         print(f"An error occurred while processing the message: {e}")
 
 
+# 查出新任务的排队情况
+async def find_prompt_status(prompt_id):
+    qres = await get_queue_from_comfyui()
+    runing_number = 0
+    if qres:
+        # 检查 queue_running
+        for item in qres.get("queue_running", []):
+            runing_number = item[0]
+            if item[1] == prompt_id:
+                return {"cur_q": 0, "q_status": "queue_running"}
+
+        # 检查 queue_pending
+        for item in qres.get("queue_pending", []):
+            if item[1] == prompt_id:
+                cur_q = item[0] - runing_number
+                return {"cur_q": cur_q, "q_status": "queue_pending"}
+    return None
+
+
 # 发送所有任务的排队情况
 async def update_all_prompt_status():
     qres = await get_queue_from_comfyui()
@@ -906,8 +925,9 @@ async def run_gc_task_async(task_data):
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
 
-            # 0：代表此前空闲，将会立即开始
-            number = result["number"]
+            cur_queue_info = await find_prompt_status(prompt_id)
+            logging.info(f"任务排队状态： {cur_queue_info}")
+            # 排队0人：代表此前空闲，将会立即开始
 
             # 本地维护关系
             bd.add(kaji_generate_record_id, prompt_id)
@@ -919,7 +939,7 @@ async def run_gc_task_async(task_data):
                 "data": {
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
-                    "cur_q": number,
+                    "cur_q": cur_queue_info.get("cur_q"),
                 },
             }
             await wss_c1.send(json.dumps(submit_success))
