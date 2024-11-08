@@ -39,7 +39,7 @@ END_POINT_URL3 = "/kaji-upload-file/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL4 = "/reset-product-status/resetProductStatus"
-TEST_UID = "66c981879d9f915ad268680a"
+# TEST_UID = "66c981879d9f915ad268680a"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -53,7 +53,6 @@ HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
 PRODUCT_ID = None
-UNIQUE_WORKFLOW_ID = None
 
 
 def download_media(url, save_dir):
@@ -364,23 +363,30 @@ def get_port_from_cmd(default_port=8188):
 
 def generate_unique_hash(mac_address, port):
     uid = f"{mac_address}:{port}"
-    logging.info(f"mac_address:port =》 {uid}")
+    # logging.info(f"mac_address:port =》 {uid}")
     hashValue = hashlib.sha256(uid.encode())
     return hashValue.hexdigest()
 
 
+# 插件端与服务器端的心跳。理论上，初始化一次，任务完成时触发一次。就可以。其余时刻发送（数据都是重复）（这里不是做网络探活的功能点）
 async def send_heartbeat(websocket):
     while True:
         try:
-            heartbeat_message = json.dumps({"type": "ping"})
+            payload = {
+                "type": "ping",
+                "uni_hash": generate_unique_hash(
+                    get_mac_address(), get_port_from_cmd()
+                ),
+                "queue": "队列具体情况",
+                "work_flow_list": ["本地正在运行的工作流列表"],
+                "clientType": "plugin",
+            }
+            heartbeat_message = json.dumps(payload)
             await websocket.send(heartbeat_message)
             print("Sent heartbeat")
 
         except Exception as e:
             print(f"Error sending heartbeat or no response: {e}")
-            if websocket == wss_c1:  # 判断websocket是否等于wss_c1
-                await reset_product_status(0)  # 设置作品状态为0
-            break
 
         await asyncio.sleep(HEART_INTERVAL)
 
@@ -418,12 +424,15 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
         async with websockets.connect(url) as websocket:
             if c_flag == 1:
                 wss_c1 = websocket
+                tasks = [
+                    asyncio.create_task(send_heartbeat(websocket)),
+                    asyncio.create_task(receive_messages(websocket, c_flag)),
+                ]
             elif c_flag == 2:
                 wss_c2 = websocket
-            tasks = [
-                asyncio.create_task(receive_messages(websocket, c_flag)),
-                asyncio.create_task(send_heartbeat(websocket)),
-            ]
+                tasks = [
+                    asyncio.create_task(receive_messages(websocket, c_flag)),
+                ]
             await asyncio.gather(*tasks)
     except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
         print(f"WebSocket connection closed: {e}")
@@ -625,9 +634,15 @@ def start_websocket_thread(c_flag):
 
 async def get_wss_server_url():
     async with aiohttp.ClientSession() as session:
+        # payload = {
+        #     "product_id": PRODUCT_ID,
+        #     "user_id": TEST_UID,
+        #     "clientType": "plugin",
+        # }
+
+        # 告知服务器，有一台新机器，使用了咔叽插件，并与您网络接通中（信息放到机器表中）
         payload = {
-            "product_id": PRODUCT_ID,
-            "user_id": TEST_UID,
+            "uni_hash": generate_unique_hash(get_mac_address(), get_port_from_cmd()),
             "clientType": "plugin",
         }
         async with session.post(BASE_URL + END_POINT_URL2, json=payload) as response:
@@ -646,7 +661,6 @@ async def get_wss_server_url():
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
     global PRODUCT_ID
-    global UNIQUE_WORKFLOW_ID
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
         oldData = jsonData.get("uploadData")
@@ -659,6 +673,9 @@ async def kaji_r(req):
                 save_workflow(uniqueid, {"workflow": workflow, "output": output})
                 newData = reformat(oldData)
                 # logging.info(f"作品上传接口入参:{newData}")
+
+                # 此处交给用户选择，是更新作品，还是新增作品（场景是：工作台中拉取服务内的作品列表，用户编辑。）
+                # 现在没有前端没有传product_id字段。服务端写死逻辑：更新作品的工作流。
             async with session.post(
                 BASE_URL + END_POINT_URL1, json=newData
             ) as response:
@@ -680,8 +697,7 @@ async def kaji_r(req):
                     if image_audit_status != 1:
                         raise ValueError("图片审核未通过，涉嫌违规")
 
-                    UNIQUE_WORKFLOW_ID = uniqueid
-                    thread_exe()
+                    # thread_exe()
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
                     return web.Response(
@@ -689,32 +705,6 @@ async def kaji_r(req):
                     )
         else:
             return web.Response(status=400, text="uploadData is missing")
-
-
-async def reset_product_status(status):
-    print("PRODUCT_ID", PRODUCT_ID)
-    if not PRODUCT_ID:
-        raise ValueError("产品ID不能为空")
-
-    url = BASE_URL + END_POINT_URL4
-    payload = {
-        "product_id": PRODUCT_ID,
-        "user_id": TEST_UID,
-        "status": status,
-    }  # 传入的参数
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=payload) as response:
-            if response.status == 200:
-                result = await response.json()
-                logging.info(f"产品状态已重置: {result}")
-                return result
-            else:
-                error_text = await response.text()
-                logging.error(
-                    f"重置产品状态失败，状态码: {response.status}, 错误信息: {error_text}"
-                )
-                return None
 
 
 def save_workflow(uniqueid, data):
@@ -910,7 +900,11 @@ def validate_prompt(prompt):
 async def run_gc_task_async(task_data):
     try:
         logging.info(f"工作队列获取任务-开始执行: {task_data}")
-        if "client_id" not in task_data or "prompt" not in task_data:
+        if (
+            "client_id" not in task_data
+            or "prompt" not in task_data
+            or "kaji_generate_record_id" not in task_data
+        ):
             logging.error(f"任务数据不完整: {task_data}")
             return
         prompt = task_data["prompt"]
@@ -926,7 +920,7 @@ async def run_gc_task_async(task_data):
             prompt_id = result["prompt_id"]
 
             cur_queue_info = await find_prompt_status(prompt_id)
-            logging.info(f"任务排队状态： {cur_queue_info}")
+            logging.info(f"立即获取当前任务的排队状态： {cur_queue_info}")
             # 排队0人：代表此前空闲，将会立即开始
 
             # 本地维护关系
@@ -959,12 +953,10 @@ def add_task_to_queue(task_data):
 
 
 def deal_recv_generate_data(recv_data):
-    # TODO 此处的 uniqueid 一定要服务端传过来吗？留在本地全局变量中
-    # uniqueid = recv_data["uniqueid"]
-    uniqueid = UNIQUE_WORKFLOW_ID
+    # 本地将会有多个uniqueid（对应创作者服务端上的不同作品）
+    uniqueid = recv_data["uniqueid"]
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
 
-    # device_id = recv_data["device_id"]
     output = get_output(uniqueid + ".json")
 
     # 检查消息中是否包含 medias,获取下载的local_path路径，替换output中的图片名为图片输入
@@ -1060,3 +1052,11 @@ def find_project_root():
     if not absolute_path.endswith(os.sep):
         absolute_path += os.sep
     return absolute_path
+
+
+def thread_run():
+    logging.info(f"进程启动，咔叽插件初始化：开启WS、队列消费")
+    threading.Thread(target=start_websocket_thread, args=(1,), daemon=True).start()
+    threading.Thread(target=start_websocket_thread, args=(2,), daemon=True).start()
+    executor.submit(run_task_with_loop, task_generate)
+    pass
