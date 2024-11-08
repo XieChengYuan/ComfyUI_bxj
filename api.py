@@ -47,8 +47,9 @@ wss_c1 = None
 wss_c2 = None
 last_value = None
 last_time = None
-RECONNECT_DELAY = 5
-MAX_RECONNECT_ATTEMPTS = 3
+RECONNECT_DELAY = 1
+MAX_RECONNECT_DELAY = 3
+MAX_RECONNECT_ATTEMPTS = 10
 HEART_INTERVAL = 300
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
@@ -413,48 +414,41 @@ async def receive_messages(websocket, c_flag):
 
 async def handle_websocket(c_flag, reconnect_attempts=0):
     global wss_c1, wss_c2
-    try:
-        if c_flag == 1:
-            url = await get_wss_server_url()
-            print(f"websocket connected to WebSocket server at {url}")
-        elif c_flag == 2:
-            url = cfy_ws_url
-        else:
-            raise ValueError("无效的 c_flag 值")
-        async with websockets.connect(url) as websocket:
-            if c_flag == 1:
-                wss_c1 = websocket
-                tasks = [
-                    asyncio.create_task(send_heartbeat(websocket)),
-                    asyncio.create_task(receive_messages(websocket, c_flag)),
-                ]
-            elif c_flag == 2:
-                wss_c2 = websocket
-                tasks = [
-                    asyncio.create_task(receive_messages(websocket, c_flag)),
-                ]
-            await asyncio.gather(*tasks)
-    except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
-        print(f"WebSocket connection closed: {e}")
-        # await reset_product_status(0)  # 设置作品状态为0
-        await handle_reconnect(c_flag, reconnect_attempts + 1)  # # 设置作品状态为0
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        # await reset_product_status(0)  # 设置作品状态为0
-        await handle_reconnect(c_flag, reconnect_attempts + 1)
-
-
-async def handle_reconnect(c_flag, reconnect_attempts):
-    if reconnect_attempts < MAX_RECONNECT_ATTEMPTS:
-        print(
-            f"Attempting to reconnect in {RECONNECT_DELAY} seconds... (Attempt {reconnect_attempts + 1}/{MAX_RECONNECT_ATTEMPTS})"
-        )
-        await asyncio.sleep(RECONNECT_DELAY)
-        await handle_websocket(c_flag, reconnect_attempts)  # 重新调用连接函数
+    if c_flag == 1:
+        url = await get_wss_server_url()
+        print(f"websocket connected to WebSocket server at {url}")
+    elif c_flag == 2:
+        url = cfy_ws_url
     else:
-        print(
-            f"Max reconnect attempts reached ({MAX_RECONNECT_ATTEMPTS}). Giving up on reconnecting."
-        )
+        raise ValueError("无效的 c_flag 值")    
+    logging.info(f"当前url: {url}")
+    reconnect_delay = RECONNECT_DELAY
+    while True:
+        try:
+            async with websockets.connect(url) as websocket:
+                print("走了几次")
+                reconnect_delay = RECONNECT_DELAY
+                if c_flag == 1:
+                    wss_c1 = websocket
+                    tasks = [
+                        asyncio.create_task(send_heartbeat(websocket)),
+                        asyncio.create_task(receive_messages(websocket, c_flag)),
+                    ]
+                elif c_flag == 2:
+                    wss_c2 = websocket
+                    tasks = [
+                        asyncio.create_task(receive_messages(websocket, c_flag)),
+                    ]
+                await asyncio.gather(*tasks)
+        except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
+            print(f"WebSocket connection closed: {e}")
+            await asyncio.sleep(reconnect_delay)
+            # await reset_product_status(0)  # 设置作品状态为0
+        except Exception as e:
+            await asyncio.sleep(1)
+            reconnect_delay = min(reconnect_delay * 2, MAX_RECONNECT_DELAY)
+        # await reset_product_status(0)  # 设置作品状态为0
+
 
 
 # 咔叽服务端的数据
