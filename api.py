@@ -445,7 +445,7 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
             await asyncio.sleep(reconnect_delay)
             # await reset_product_status(0)  # 设置作品状态为0
         except Exception as e:
-            await asyncio.sleep(1)
+            await asyncio.sleep(reconnect_delay)
             reconnect_delay = min(reconnect_delay * 2, MAX_RECONNECT_DELAY)
         # await reset_product_status(0)  # 设置作品状态为0
 
