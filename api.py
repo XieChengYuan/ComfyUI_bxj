@@ -50,7 +50,7 @@ last_time = None
 RECONNECT_DELAY = 1
 MAX_RECONNECT_DELAY = 3
 MAX_RECONNECT_ATTEMPTS = 10
-HEART_INTERVAL = 300
+HEART_INTERVAL = 30
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
 PRODUCT_ID = None
@@ -100,11 +100,52 @@ def parse_port_from_args(args):
     return args.port
 
 
+def get_mac_address() -> str:
+    mac_uid = uuid.getnode()
+    mac_address = ":".join(("%012X" % mac_uid)[i : i + 2] for i in range(0, 12, 2))
+    return mac_address
+
+
+def get_port_from_cmd(default_port=8188):
+    port = None
+
+    def extract_port_from_arg(arg):
+        match = re.search(r"--port[=\s]*(\d+)", arg)
+        if match:
+            return int(match.group(1))
+        return None
+
+    for i, arg in enumerate(sys.argv):
+        if arg == "--port" and i + 1 < len(sys.argv):
+            try:
+                port = int(sys.argv[i + 1])
+            except ValueError:
+                continue
+
+        extracted_port = extract_port_from_arg(arg)
+        if extracted_port:
+            port = extracted_port
+        if port:
+            break
+
+    return port if port else default_port
+
+
+def generate_unique_hash(mac_address, port):
+    uid = f"{mac_address}:{port}"
+    # logging.info(f"mac_address:port =》 {uid}")
+    hashValue = hashlib.sha256(uid.encode())
+    return hashValue.hexdigest()
+
+
 args = parse_args()
 cur_client_id = f"{str(uuid.uuid4())}:{parse_port_from_args(args)}"
 cfy_ws_url = "ws://{}:{}/ws?clientId={}".format(
     get_address_from_args(args), parse_port_from_args(args), cur_client_id
 )
+
+uni_hash = generate_unique_hash(get_mac_address(), get_port_from_cmd())
+print(f"每次启动都是相同的机器码，uni_hash：{uni_hash}")
 
 
 def get_comfyui_address():
@@ -319,9 +360,7 @@ def reformat(uploadData):
 
         uploadData["imageBase"] = base64.b64encode(image_content).decode("utf-8")
         print("imageBase 已成功替换为文件内容")
-        uploadData["uni_hash"] = generate_unique_hash(
-            get_mac_address(), get_port_from_cmd()
-        )
+        uploadData["uni_hash"] = uni_hash
         uploadData["inputTypeArr"] = getInputTypeArr(uploadData.get("output"))
         uploadData.pop("output", None)
         uploadData.pop("workflow", None)
@@ -331,56 +370,19 @@ def reformat(uploadData):
     return uploadData
 
 
-def get_mac_address() -> str:
-    mac_uid = uuid.getnode()
-    mac_address = ":".join(("%012X" % mac_uid)[i : i + 2] for i in range(0, 12, 2))
-    return mac_address
-
-
-def get_port_from_cmd(default_port=8188):
-    port = None
-
-    def extract_port_from_arg(arg):
-        match = re.search(r"--port[=\s]*(\d+)", arg)
-        if match:
-            return int(match.group(1))
-        return None
-
-    for i, arg in enumerate(sys.argv):
-        if arg == "--port" and i + 1 < len(sys.argv):
-            try:
-                port = int(sys.argv[i + 1])
-            except ValueError:
-                continue
-
-        extracted_port = extract_port_from_arg(arg)
-        if extracted_port:
-            port = extracted_port
-        if port:
-            break
-
-    return port if port else default_port
-
-
-def generate_unique_hash(mac_address, port):
-    uid = f"{mac_address}:{port}"
-    # logging.info(f"mac_address:port =》 {uid}")
-    hashValue = hashlib.sha256(uid.encode())
-    return hashValue.hexdigest()
-
-
-# 插件端与服务器端的心跳。理论上，初始化一次，任务完成时触发一次。就可以。其余时刻发送（数据都是重复）（这里不是做网络探活的功能点）
+# 插件端与服务器端的心跳。理论上，初始化一次，任务变动（新增+1、完成-1）时触发一次。就可以。 其余时刻发送（数据都是重复）是多余的（网络探活不靠这个）
 async def send_heartbeat(websocket):
     while True:
         try:
             payload = {
                 "type": "ping",
-                "uni_hash": generate_unique_hash(
-                    get_mac_address(), get_port_from_cmd()
-                ),
-                "queue": "队列具体情况",
-                "work_flow_list": ["本地正在运行的工作流列表"],
-                "clientType": "plugin",
+                "data": {
+                    "uni_hash": uni_hash,
+                    "queue_size": 5,  # 队列具体情况 todo写死先
+                    "uniqueids": [
+                        "m384phoac3oapxvhv3b"
+                    ],  # 本地正在运行的工作流标识列表 todo写死先
+                },
             }
             heartbeat_message = json.dumps(payload)
             await websocket.send(heartbeat_message)
@@ -420,13 +422,14 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
     elif c_flag == 2:
         url = cfy_ws_url
     else:
-        raise ValueError("无效的 c_flag 值")    
+        raise ValueError("无效的 c_flag 值")
     logging.info(f"当前url: {url}")
     reconnect_delay = RECONNECT_DELAY
     while True:
+        print(f"ws{c_flag} 开始发起连接")
         try:
             async with websockets.connect(url) as websocket:
-                print("走了几次")
+                print(f"ws{c_flag} 连接成功！~")
                 reconnect_delay = RECONNECT_DELAY
                 if c_flag == 1:
                     wss_c1 = websocket
@@ -441,14 +444,12 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
                     ]
                 await asyncio.gather(*tasks)
         except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
-            print(f"WebSocket connection closed: {e}")
+            print(f"WebSocket connection closed: {c_flag},{e}")
             await asyncio.sleep(reconnect_delay)
-            # await reset_product_status(0)  # 设置作品状态为0
         except Exception as e:
+            print(f"WebSocket connection error: {c_flag},{e}")
             await asyncio.sleep(reconnect_delay)
             reconnect_delay = min(reconnect_delay * 2, MAX_RECONNECT_DELAY)
-        # await reset_product_status(0)  # 设置作品状态为0
-
 
 
 # 咔叽服务端的数据
@@ -459,10 +460,10 @@ async def process_server_message1(message):
         message_type = message_data.get("type")
         data = message_data.get("data", {})
 
-        if message_type == "pong":
-            print("连接正常")
+        # if message_type == "pong":
+        #     print("连接正常")
 
-        elif message_type == "generate_submit":
+        if message_type == "generate_submit":
             print("收到生图消息", data)
             deal_recv_generate_data(data)
 
@@ -636,7 +637,7 @@ async def get_wss_server_url():
 
         # 告知服务器，有一台新机器，使用了咔叽插件，并与您网络接通中（信息放到机器表中）
         payload = {
-            "uni_hash": generate_unique_hash(get_mac_address(), get_port_from_cmd()),
+            "uni_hash": uni_hash,
             "clientType": "plugin",
         }
         async with session.post(BASE_URL + END_POINT_URL2, json=payload) as response:
