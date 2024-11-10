@@ -1,5 +1,3 @@
-console.log("咔叽wb.js入口");
-
 // 创建工作台按钮
 const workbenchButton = document.createElement('button');
 workbenchButton.innerText = '咔叽工作台';
