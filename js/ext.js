@@ -141,3 +141,15 @@ const cssStyle = `
 `
 stylesheet.innerHTML = cssStyle
 document.head.appendChild(stylesheet);
+
+// 延迟一会导入咔叽入口
+setTimeout(() => {
+    console.log("工作台入口执行");
+    import("/kaji/index.js")
+        .then((module) => {
+            console.log("模块已加载");
+        })
+        .catch((error) => {
+            console.error("模块加载失败", error);
+        });
+}, 500);

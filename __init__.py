@@ -1,6 +1,17 @@
 from .sdCpm import *
 from .setup import *
 from .api import *
+import os
+from aiohttp import web
+
+static_dir_path = os.path.join(os.path.dirname(__file__), 'kaji')
+print("Static directory found, adding routes.",static_dir_path)
+if os.path.exists(static_dir_path):
+    print("Static directory found, adding routes.")
+    server.PromptServer.instance.app.add_routes([web.static('/kaji/', static_dir_path)])
+else:
+    print("Static directory not found.")
+
 
 extension_dirs = [
     "js",
