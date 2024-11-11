@@ -30,7 +30,26 @@ const themeColor = '#0F1114';
 const accentColor = '#5CB85C';
 const secondaryColor = '#1D1E1F';
 const style = document.createElement('style');
-style.textContent = `
+
+//倾向型点击按钮特效
+style.textContent =  `
+   .glow-button {
+        background-color: ${accentColor};
+        border: none;
+        padding: 10px 20px;
+        color: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+
+    .glow-button:hover {
+        box-shadow: 0 0 15px rgba(92, 184, 92, 0.7), 0 0 30px rgba(92, 184, 92, 0.5);
+        transform: scale(1.05); /* 仅放大效果，不影响位置 */
+    }
+`;
+
+style.textContent += `
     /* 按钮样式 */
     #workbench-button {
         position: fixed;
@@ -129,8 +148,7 @@ style.textContent = `
         margin-top: 20px;
         position: absolute;
         bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
+        left: calc(50% - 50px); 
     }
     .footer {
         position: absolute;
@@ -324,6 +342,59 @@ function createTooltip(text) {
 
     return tooltipContainer;
 }
+
+function createUserInputFormComponent(title, inputField) {
+    const userInputFormContainer = document.querySelector('.user-input-form-container');
+    
+    // 创建新的表单组件
+    const formComponent = document.createElement('div');
+    formComponent.className = 'user-form-component';
+    formComponent.style.padding = '10px';
+    formComponent.style.borderRadius = '4px';
+    formComponent.style.backgroundColor = '#2E2E2E';
+    formComponent.style.marginTop = '10px';
+    formComponent.dataset.componentName = title; 
+
+    // 创建标题栏
+    const formTitle = document.createElement('p');
+    formTitle.textContent = inputField.value || inputField.placeholder;
+    formTitle.style.fontWeight = 'bold';
+
+    const userInput = document.createElement('input');
+    userInput.type = 'text';
+    userInput.value = '';
+    userInput.style.width = '80%';
+    userInput.style.padding = '10px';
+    userInput.style.borderRadius = '6px';
+    userInput.style.border = '1px solid #555';
+    userInput.style.backgroundColor = '#2E2E2E';
+    userInput.style.color = '#FFFFFF';
+    userInput.style.fontSize = '1rem';
+    userInput.style.fontWeight = 'bold';
+    userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
+    userInput.style.outline = 'none';
+    userInput.style.transition = 'all 0.3s ease';
+    
+    userInput.addEventListener('focus', () => {
+        userInput.style.borderColor = '#5CB85C'; // 绿色边框
+        userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
+    });
+    
+    userInput.addEventListener('blur', () => {
+        userInput.style.borderColor = '#555'; // 恢复原边框颜色
+        userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
+    });
+
+    // 添加表单组件到用户输入表单容器
+    formComponent.appendChild(formTitle);
+    formComponent.appendChild(userInput);
+    userInputFormContainer.appendChild(formComponent);
+
+    // 实时更新标题
+    inputField.addEventListener('input', () => {
+        formTitle.textContent = inputField.value || inputField.placeholder; 
+    });
+}
 // #endregion 公共组件
 
 // #region 工作台主按钮及主容器
@@ -331,6 +402,7 @@ function createTooltip(text) {
 const workbenchButton = document.createElement('button');
 workbenchButton.innerText = '咔叽工作台';
 workbenchButton.id = 'workbench-button';
+workbenchButton.classList.add('glow-button'); 
 
 // 创建插件 UI 遮罩层
 const overlay = document.createElement('div');
@@ -409,7 +481,7 @@ nodeSelect.addEventListener('change', (event) => {
     const selectedNode = nodes.find(node => node.id === selectedNodeId);
 
     if (selectedNode) {
-        // 创建一个新组件，显示节点信息
+        // 创建作品输入信息面板内的节点组件
         const nodeComponent = document.createElement('div');
         nodeComponent.className = 'node-component';
         nodeComponent.style.border = '1px solid #444';
@@ -418,17 +490,47 @@ nodeSelect.addEventListener('change', (event) => {
         nodeComponent.style.borderRadius = '4px';
         nodeComponent.style.backgroundColor = '#333';
 
+        // 创建输入框并添加到nodeComponent
+        const inputField = document.createElement('input');
+        inputField.type = 'text';
+        inputField.placeholder = `请输入${selectedNode.name}`;
+        inputField.style.width = '80%';
+        inputField.style.padding = '10px';
+        inputField.style.borderRadius = '6px';
+        inputField.style.border = '1px solid #555';
+        inputField.style.backgroundColor = '#2E2E2E';
+        inputField.style.color = '#FFFFFF';
+        inputField.style.fontSize = '1rem';
+        inputField.style.fontWeight = 'bold';
+        inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
+        inputField.style.outline = 'none';
+        inputField.style.transition = 'all 0.3s ease';
+        
+        inputField.addEventListener('focus', () => {
+            inputField.style.borderColor = '#5CB85C'; // 绿色边框
+            inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
+        });
+        
+        inputField.addEventListener('blur', () => {
+            inputField.style.borderColor = '#555'; // 恢复原边框颜色
+            inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
+        });
+
         nodeComponent.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; color: #EAEAEA; font-weight: bold;">
                 <span>${selectedNode.name}</span>
                 <button class="delete-button" style="background: none; border: none; color: #E74C3C; cursor: pointer; font-size: 0.9rem;">🗑️</button>
             </div>
-            <p style="margin: 8px 0 4px; font-size: 0.85rem; color: #CCCCCC;">设置用户输入标题</p>
-            <input type="text" placeholder="请输入${selectedNode.name}" style="width: 90%; padding: 6px; border-radius: 4px; border: 1px solid #555; background-color: #1D1D1D; color: #FFFFFF; font-size: 0.85rem;">
+            <p style="margin: 8px 0 4px; font-size: 0.85rem; color: #CCCCCC;">设置用户输入的提示性标题</p>
         `;
+        nodeComponent.appendChild(inputField); // 添加输入框到组件中
+        nodeComponent.dataset.componentName = selectedNode.name; // 为组件添加标识
 
         // 添加到动态容器
         dynamicContainer.appendChild(nodeComponent);
+
+        // 动态生成用户输入表单中的同步组件
+        createUserInputFormComponent(selectedNode.name, inputField);
 
         // 隐藏提示文本
         svgContains.style.display = 'none';
@@ -439,6 +541,12 @@ nodeSelect.addEventListener('change', (event) => {
 dynamicContainer.addEventListener('click', function(event) {
     if (event.target.classList.contains('delete-button')) {
         const nodeComponent = event.target.closest('.node-component');
+        
+        // 获取组件名称并删除对应的用户输入表单组件
+        const componentName = nodeComponent.dataset.componentName;
+        removeUserInputFormComponent(componentName);
+
+        // 删除作品输入信息中的组件
         nodeComponent.remove();
 
         // 如果动态容器为空时显示SVG
@@ -448,7 +556,15 @@ dynamicContainer.addEventListener('click', function(event) {
     }
 });
 
-
+// 删除用户输入表单中的同步组件
+function removeUserInputFormComponent(title) {
+    const userInputFormContainer = document.querySelector('.user-input-form-container');
+    const formComponent = userInputFormContainer.querySelector(`.user-form-component[data-component-name="${title}"]`);
+    
+    if (formComponent) {
+        formComponent.remove();
+    }
+}
 // #endregion 创建作品参数面板
 
 // #region 创建用户输入表单面板
@@ -457,8 +573,8 @@ userInput.className = 'panel';
 userInput.style.position = 'relative';
 userInput.innerHTML = `
     <h3>用户输入表单</h3>
-    <p>暂无用户自定义输入</p>
-    <button class="panel-button">作品生成测试</button>
+    <p>此处预览用户输入</p>
+    <button class="panel-button glow-button">作品生成测试</button>
 `;
 
 const mockUser = document.createElement('div');
@@ -467,6 +583,13 @@ mockUser.innerHTML = `
     <h3>模拟用户生成</h3>
     <p>这里是模拟用户生成的内容...</p>
 `;
+
+// 创建用户输入表单容器
+const userInputFormContainer = document.createElement('div');
+userInputFormContainer.className = 'user-input-form-container';
+userInputFormContainer.style.padding = '10px';
+userInputFormContainer.style.marginTop = '20px';
+userInput.appendChild(userInputFormContainer);
 
 // 添加内容到 panelsContainer
 panelsContainer.appendChild(productInfo);
@@ -529,9 +652,9 @@ const footer = document.createElement('div');
 footer.className = 'footer';
 footer.innerHTML = `
     <button id="cancel-button">取消</button>
-    <button id="next-button">下一步</button>
+    <button id="next-button" class="glow-button">下一步</button>
     <button id="prev-button" style="display: none;">上一步</button>
-    <button id="publish-button" style="display: none;">发布作品</button>
+    <button id="publish-button" class="glow-button" style="display: none;">发布作品</button>
 `;
 
 // 挂载所有元素
