@@ -264,7 +264,7 @@ style.textContent += `
     font-weight: bold;
     position: relative; /* 使其可偏移位置 */
     top: -2px; /* 向上移动 */
-    right: -2px; /* 向右移动 */
+    right: -4px; /* 向右移动 */
 }
 
 .tooltip-text {
@@ -576,13 +576,17 @@ userInput.innerHTML = `
     <p>此处预览用户输入</p>
     <button class="panel-button glow-button">作品生成测试</button>
 `;
+const userTips = userInput.querySelector('h3');
+userTips.appendChild(createTooltip('可以预览用户输入表单，并测试输入'));
 
 const mockUser = document.createElement('div');
 mockUser.className = 'panel';
 mockUser.innerHTML = `
     <h3>模拟用户生成</h3>
-    <p>这里是模拟用户生成的内容...</p>
 `;
+
+const generaateTips = mockUser.querySelector('h3');
+generaateTips.appendChild(createTooltip('此处可以预览用户生成的内容'));
 
 // 创建用户输入表单容器
 const userInputFormContainer = document.createElement('div');
