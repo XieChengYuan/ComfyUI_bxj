@@ -65,7 +65,5 @@ async function loadPluginUI() {
 }
 
 // 调用函数以加载插件UI
-setTimeout(() => {
-    console.log("初始化咔叽UI");
-    loadPluginUI();
-}, 500);
+loadPluginUI();
+
