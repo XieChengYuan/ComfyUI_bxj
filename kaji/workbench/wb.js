@@ -357,6 +357,7 @@ panelsContainer.className = 'panels-container';
 
 // #region 创建作品参数面板
 //TODO：获取当前工作流可作为输入的节点
+// 创建作品参数模块容器
 const nodes = [
     { id: 'node1', name: '节点1', description: '这是节点1的描述' },
     { id: 'node2', name: '节点2', description: '这是节点2的描述' },
@@ -420,7 +421,7 @@ nodeSelect.addEventListener('change', (event) => {
         nodeComponent.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; color: #EAEAEA; font-weight: bold;">
                 <span>${selectedNode.name}</span>
-                <button style="background: none; border: none; color: #E74C3C; cursor: pointer; font-size: 0.9rem;" onclick="removeComponent(this)">🗑️</button>
+                <button class="delete-button" style="background: none; border: none; color: #E74C3C; cursor: pointer; font-size: 0.9rem;">🗑️</button>
             </div>
             <p style="margin: 8px 0 4px; font-size: 0.85rem; color: #CCCCCC;">设置用户输入标题</p>
             <input type="text" placeholder="请输入${selectedNode.name}" style="width: 90%; padding: 6px; border-radius: 4px; border: 1px solid #555; background-color: #1D1D1D; color: #FFFFFF; font-size: 0.85rem;">
@@ -434,15 +435,19 @@ nodeSelect.addEventListener('change', (event) => {
     }
 });
 
-// 删除组件的函数
-function removeComponent(element) {
-    element.parentElement.parentElement.remove();
+// 使用事件委托方式添加删除按钮的点击事件
+dynamicContainer.addEventListener('click', function(event) {
+    if (event.target.classList.contains('delete-button')) {
+        const nodeComponent = event.target.closest('.node-component');
+        nodeComponent.remove();
 
-    // 如果动态容器为空时显示SVG
-    if (dynamicContainer.children.length === 0) {
-        svgContains.style.display = 'flex'; // 确保居中显示
+        // 如果动态容器为空时显示SVG
+        if (dynamicContainer.children.length === 0) {
+            svgContains.style.display = 'flex'; // 确保居中显示
+        }
     }
-}
+});
+
 
 // #endregion 创建作品参数面板
 
