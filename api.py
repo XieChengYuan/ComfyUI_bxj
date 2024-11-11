@@ -520,6 +520,7 @@ async def update_all_prompt_status():
                 "type": "update_queue",
                 "data": {"queue_info": queue_info},
             }
+            # 这里可以和ping 的逻辑保持一致。合并
             await wss_c1.send(json.dumps(update_queue))
 
 
@@ -608,7 +609,13 @@ async def process_server_message2(message):
         }
         await wss_c1.send(json.dumps(executed_success))
     elif message_type == "execution_success":
-        # 该任务工作流所有节点完成，任务也完成。此时可以通知下
+        # 该任务所有节点完成，任务也完成。此时可以通知下
+        prompt_id = message_json["data"]["prompt_id"]
+        bd.remove_value(prompt_id)
+
+        # 这里也可以用来记录生图全耗时、（生图开始 - 生图开始）
+        timestamp = message_json["data"]["timestamp"]
+
         await update_all_prompt_status()
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
@@ -636,10 +643,7 @@ async def get_wss_server_url():
         # }
 
         # 告知服务器，有一台新机器，使用了咔叽插件，并与您网络接通中（信息放到机器表中）
-        payload = {
-            "uni_hash": uni_hash,
-            "clientType": "plugin",
-        }
+        payload = {"uni_hash": uni_hash}
         async with session.post(BASE_URL + END_POINT_URL2, json=payload) as response:
             try:
                 res = await response.json()
@@ -958,7 +962,12 @@ def deal_recv_generate_data(recv_data):
     if "medias" in recv_data:
         for media in recv_data["medias"]:
             url_temp = media["url_temp"]
+            # 媒体文件下载计时
+            start_time = time.time()
             local_path = download_media(url_temp, media_save_dir)
+            end_time = time.time()
+            duration = end_time - start_time
+            print(f"媒体文件下载耗时: {duration}")
             if local_path:
                 # 获取文件名及后缀
                 filename = os.path.basename(local_path)
