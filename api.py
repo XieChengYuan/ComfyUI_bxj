@@ -39,7 +39,9 @@ BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
 END_POINT_URL3 = "/kaji-upload-file/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
-END_POINT_URL4 = "/reset-product-status/resetProductStatus"
+END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts"
+END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
+END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
 # TEST_UID = "66c981879d9f915ad268680a"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
@@ -54,7 +56,6 @@ MAX_RECONNECT_ATTEMPTS = 10
 HEART_INTERVAL = 30
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
-PRODUCT_ID = None
 
 
 def download_media(url, save_dir):
@@ -359,8 +360,22 @@ def reformat(uploadData):
         with open(image_path, "rb") as img_file:
             image_content = img_file.read()
 
-        uploadData["imageBase"] = base64.b64encode(image_content).decode("utf-8")
-        print("imageBase 已成功替换为文件内容")
+        # uploadData["imageBase"] = base64.b64encode(image_content).decode("utf-8")
+        # print("imageBase 已成功替换为文件内容")
+
+        # 所有待上传的图片或视频，单独上传，并获取fileId+url；暂时这里只有一张，后续可能会有多张图片和视频
+        # 改为七牛云-扩展存储后。直接下载七牛云的 SDK 来上传到 OSS
+        # 客户端上传文件到云函数、云函数再上传文件到云存储，这样的过程会导致文件流量带宽耗费较大。所以一般上传文件都是客户端直传。（且云函数的请求体大小限制2M）
+
+        media_urls = [
+            {
+                "type": "images",
+                "url": "cloud://env-00jxh693vso2/1731033595419.jpeg",
+                "url_temp": "https://env-00jxh693vso2.normal.cloudstatic.cn/1731033595419.jpeg?expire_at=1731034196&er_sign=3f6fb944df7fd893e4a9c147e2c1b389",
+            }
+        ]
+        uploadData["media_urls"] = media_urls
+
         uploadData["uni_hash"] = uni_hash
         uploadData["inputTypeArr"] = getInputTypeArr(uploadData.get("output"))
         uploadData.pop("output", None)
@@ -636,12 +651,6 @@ def start_websocket_thread(c_flag):
 
 async def get_wss_server_url():
     async with aiohttp.ClientSession() as session:
-        # payload = {
-        #     "product_id": PRODUCT_ID,
-        #     "user_id": TEST_UID,
-        #     "clientType": "plugin",
-        # }
-
         # 告知服务器，有一台新机器，使用了咔叽插件，并与您网络接通中（信息放到机器表中）
         payload = {"uni_hash": uni_hash}
         async with session.post(BASE_URL + END_POINT_URL2, json=payload) as response:
@@ -659,24 +668,28 @@ async def get_wss_server_url():
 
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
-    global PRODUCT_ID
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
         oldData = jsonData.get("uploadData")
         if oldData:
             uniqueid = oldData.get("uniqueid")  # 从上传数据中提取uniqueid
             if uniqueid:
-                # 保存工作流数据
+                # 本地保存工作流数据
                 workflow = oldData.get("workflow")
                 output = oldData.get("output")
                 save_workflow(uniqueid, {"workflow": workflow, "output": output})
-                newData = reformat(oldData)
-                # logging.info(f"作品上传接口入参:{newData}")
 
-                # 此处交给用户选择，是更新作品，还是新增作品（场景是：工作台中拉取服务内的作品列表，用户编辑。）
-                # 现在没有前端没有传product_id字段。服务端写死逻辑：更新作品的工作流。
+                newData = reformat(oldData)
+
+                # 有 id 说明是更新作品
+                newData["product_id"] = "672b821f31c9b7c2eecb13dd"
+                newData["token"] = (
+                    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE0MjAyMjUsImV4cCI6MTczMTQyNzQyNX0.mkxso5vSe8K9l_O-aERavztY8veYqH_LyJXk8tbq1Ro"
+                )
+                logging.info(f"作品上传接口入参:{newData}")
+
             async with session.post(
-                BASE_URL + END_POINT_URL1, json=newData
+                BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=newData
             ) as response:
                 try:
                     res = await response.text()
