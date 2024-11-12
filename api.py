@@ -390,14 +390,20 @@ def reformat(uploadData):
 async def send_heartbeat(websocket):
     while True:
         try:
+            # 获取所有工作流id
+            base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
+            # 保存workflow
+            workflow_path = os.path.join(base_path, "workflow")
+            uniqueids = get_filenames(workflow_path)
+            print(f"工作流id 列表：{uniqueids}")
+
+            # 获取当前队列大小
             payload = {
                 "type": "ping",
                 "data": {
                     "uni_hash": uni_hash,
                     "queue_size": 5,  # 队列具体情况 todo写死先
-                    "uniqueids": [
-                        "m384phoac3oapxvhv3b"
-                    ],  # 本地正在运行的工作流标识列表 todo写死先
+                    "uniqueids": uniqueids,
                 },
             }
             heartbeat_message = json.dumps(payload)
@@ -408,6 +414,21 @@ async def send_heartbeat(websocket):
             print(f"Error sending heartbeat or no response: {e}")
 
         await asyncio.sleep(HEART_INTERVAL)
+
+
+def get_filenames(directory):
+    if os.path.exists(directory):
+        all_entries = os.listdir(directory)
+        all_entries = [
+            name
+            for name in all_entries
+            if os.path.isfile(os.path.join(directory, name))
+        ]
+        all_entries = [name.split(".")[0] for name in all_entries]
+        return all_entries
+    else:
+        return []
+
 
 async def receive_messages(websocket, c_flag):
     try:
@@ -708,6 +729,8 @@ async def kaji_r(req):
                     image_audit_status = data.get("image_audit_status", None)
                     if image_audit_status != 1:
                         raise ValueError("图片审核未通过，涉嫌违规")
+
+                    # 这里也要触发了那个ping事件，机器内新增了一个工作流啦
 
                     # thread_exe()
                     return web.json_response(res_js)

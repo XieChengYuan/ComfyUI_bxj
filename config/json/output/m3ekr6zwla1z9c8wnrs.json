@@ -1,0 +1,180 @@
+{
+    "3": {
+        "inputs": {
+            "seed": 24631834913968,
+            "steps": 20,
+            "cfg": 8,
+            "sampler_name": "dpmpp_2m",
+            "scheduler": "normal",
+            "denoise": 0.8700000000000001,
+            "model": [
+                "14",
+                0
+            ],
+            "positive": [
+                "6",
+                0
+            ],
+            "negative": [
+                "7",
+                0
+            ],
+            "latent_image": [
+                "12",
+                0
+            ]
+        },
+        "class_type": "KSampler",
+        "_meta": {
+            "title": "KSampler"
+        }
+    },
+    "6": {
+        "inputs": {
+            "text": [
+                "16",
+                0
+            ],
+            "speak_and_recognation": true,
+            "clip": [
+                "14",
+                1
+            ]
+        },
+        "class_type": "CLIPTextEncode",
+        "_meta": {
+            "title": "CLIP Text Encode (Prompt)"
+        }
+    },
+    "7": {
+        "inputs": {
+            "text": "watermark, text\n",
+            "speak_and_recognation": true,
+            "clip": [
+                "14",
+                1
+            ]
+        },
+        "class_type": "CLIPTextEncode",
+        "_meta": {
+            "title": "CLIP Text Encode (Prompt)"
+        }
+    },
+    "8": {
+        "inputs": {
+            "samples": [
+                "3",
+                0
+            ],
+            "vae": [
+                "14",
+                2
+            ]
+        },
+        "class_type": "VAEDecode",
+        "_meta": {
+            "title": "VAE Decode"
+        }
+    },
+    "9": {
+        "inputs": {
+            "filename_prefix": "ComfyUI",
+            "images": [
+                "8",
+                0
+            ]
+        },
+        "class_type": "SaveImage",
+        "_meta": {
+            "title": "Save Image"
+        }
+    },
+    "12": {
+        "inputs": {
+            "pixels": [
+                "22",
+                0
+            ],
+            "vae": [
+                "14",
+                2
+            ]
+        },
+        "class_type": "VAEEncode",
+        "_meta": {
+            "title": "VAE Encode"
+        }
+    },
+    "14": {
+        "inputs": {
+            "ckpt_name": "sd_xl_base_1.0.safetensors"
+        },
+        "class_type": "CheckpointLoaderSimple",
+        "_meta": {
+            "title": "Load Checkpoint"
+        }
+    },
+    "16": {
+        "inputs": {
+            "text": "",
+            "speak_and_recognation": true
+        },
+        "class_type": "cpm_textInput",
+        "_meta": {
+            "title": "cpm_textInput"
+        }
+    },
+    "18": {
+        "inputs": {
+            "image": "1980sV2.jpg",
+            "upload": "image"
+        },
+        "class_type": "LoadImage",
+        "_meta": {
+            "title": "Load Image"
+        }
+    },
+    "20": {
+        "inputs": {
+            "product-title": "\u96c6\u7fa4\u90e8\u7f72\u7684\u4f5c\u54c12",
+            "product-desc": "1112",
+            "product-prices": 1,
+            "free-times": 3,
+            "input_text1(optional)": [
+                "16",
+                0
+            ],
+            "img1_tips": "\u8bf7\u4e0a\u4f20\u53c2\u8003\u56fe\u7247",
+            "img2_tips": "\u8bf7\u4e0a\u4f20\u53c2\u8003\u56fe\u7247",
+            "img3_tips": "\u8bf7\u4e0a\u4f20\u53c2\u8003\u56fe\u7247",
+            "video1_tips": "\u8bf7\u4e0a\u4f20\u53c2\u8003\u89c6\u9891",
+            "video2_tips": "\u8bf7\u4e0a\u4f20\u53c2\u8003\u89c6\u9891",
+            "video3_tips": "\u8bf7\u4e0a\u4f20\u53c2\u8003\u89c6\u9891",
+            "text1_tips": "\u8bf7\u8f93\u5165\u6587\u672c\u63d0\u793a\u8bcd",
+            "text2_tips": "\u8bf7\u8f93\u5165\u53cd\u5411\u63d0\u793a\u8bcd",
+            "text3_tips": "\u8bf7\u8f93\u5165\u63d0\u793a\u8bcd",
+            "product_img1(optional)": [
+                "18",
+                0
+            ],
+            "input_img1(optional)": [
+                "22",
+                0
+            ]
+        },
+        "class_type": "sdCpm",
+        "_meta": {
+            "title": "sdCpm"
+        }
+    },
+    "22": {
+        "inputs": {
+            "image": "example.png",
+            "upload": "image"
+        },
+        "class_type": "LoadImage",
+        "_meta": {
+            "title": "Load Image"
+        }
+    }
+}
