@@ -31,6 +31,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s",
 )
+logger = logging.getLogger(__name__)
 
 
 DEBUG = True
@@ -392,7 +393,6 @@ async def send_heartbeat(websocket):
             print(f"Error sending heartbeat or no response: {e}")
 
         await asyncio.sleep(HEART_INTERVAL)
-
 
 async def receive_messages(websocket, c_flag):
     try:
