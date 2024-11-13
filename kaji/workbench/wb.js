@@ -293,6 +293,52 @@ style.textContent += `
     .work-management-content h3 {
         color: #f3f3f3;
     }
+    /* Switch 样式 */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px; 
+        height: 30px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 22px; 
+        width: 22px;  
+        border-radius: 50%;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+    }
+
+    input:checked + .slider {
+        background-color: #5CB85C;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(20px);
+    }
+
 `;
 
 // 帮助提示组件样式
@@ -409,7 +455,7 @@ async function request(url, data = null, method = 'POST') {
 }
 // #endregion comfyui前后端通信接口
 
-// #region 公共组件
+// #region 公共组件/函数
 function createTooltip(text) {
     const tooltipContainer = document.createElement('span');
     tooltipContainer.className = 'tooltip-container';
@@ -492,6 +538,19 @@ function createUserInputFormComponent(title, inputField) {
     // 实时更新标题
     inputField.addEventListener('input', () => {
         formTitle.textContent = inputField.value || inputField.placeholder;
+    });
+}
+
+// 通用的焦点和失焦处理函数
+function addFocusBlurListener(inputElement) {
+    inputElement.addEventListener('focus', () => {
+        inputElement.style.borderColor = '#5CB85C'; // 绿色边框
+        inputElement.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
+    });
+
+    inputElement.addEventListener('blur', () => {
+        inputElement.style.borderColor = '#555'; 
+        inputElement.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
     });
 }
 // #endregion 公共组件
@@ -710,7 +769,7 @@ const completeWrapContainer = document.createElement('div');
 completeWrapContainer.className = 'complete-wrap-container';
 completeWrapContainer.style.display = 'none';
 
-// #region创建头图设置区域
+// #region 创建头图设置区域
 const headerImageSection = document.createElement('div');
 headerImageSection.className = 'header-image-section';
 headerImageSection.innerHTML = `
@@ -734,7 +793,7 @@ headerImageSection.innerHTML = `
             position: relative;
             transition: background-image 1s ease-in-out;
         ">
-            <p id="preview-text" style="margin: 0; font-size: 0.95rem; font-weight: bold; display: block;">显示选择的图片区域</p>
+            <p id="preview-text" style="margin: 0; font-size: 0.95rem; font-weight: bold; display: block;">此处显示选择的图片</p>
            
             <div id="carousel-controls" style="display: none; position: absolute; bottom: 15px; display: flex; gap: 5px;"></div>
         </div>
@@ -769,7 +828,7 @@ headerImageSection.innerHTML = `
         color: white;
         text-align: center;
         line-height: 50px;
-        margin-top: 120px;
+        margin-top: 100px;
         display: none;
         box-shadow: 0px 4px 15px rgba(255, 59, 48, 0.5); 、
         transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -1082,22 +1141,75 @@ settingsSection.innerHTML += `
             box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
             outline: none;
         ">
+
+        <!-- 设置作品价格 -->
+        <label for="price-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置作品价格</label>
+        <input type="number" id="price-input" placeholder="输入价格" style="
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background-color: #2E2E2E;
+            color: #FFF;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
+            outline: none;
+        ">
         
         <label for="promotion-toggle" style="display: block; margin-bottom: 6px; color: #ccc;">推广分成</label>
-        <button id="promotion-toggle" style="
-            width: 100%;
-            padding: 10px;
-            background-color: #444;
-            color: #FFF;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
-            transition: background-color 0.3s ease;
-        ">此处是一个开关</button>
+        
+        <!-- Switch 控件 -->
+        <div style="display: flex; align-items: center;">
+            <label class="switch" style="display: inline-block; margin-right: 10px;">
+                <input type="checkbox" id="promotion-toggle" style="display: none;">
+                <span class="slider"></span>
+            </label>
+            <span id="promotion-status" style="color: #fff; font-size: 16px;">关闭</span>
+        </div>
     </div>
 `;
+
+
+
+// 获取切换开关元素
+const promotionToggle = settingsSection.querySelector('#promotion-toggle');
+const promotionStatus = settingsSection.querySelector('#promotion-status');
+const productTitleInput = settingsSection.querySelector('#title-input');
+const productDesInput = settingsSection.querySelector('#description-input');
+const priceInput = settingsSection.querySelector('#price-input');  // 获取作品价格输入框
+
+// 为每个输入框添加焦点和失焦事件监听器
+addFocusBlurListener(productTitleInput);
+addFocusBlurListener(productDesInput);
+addFocusBlurListener(priceInput);
+
+// 默认状态
+let promotionEnabled = false;
+
+// 切换开关状态
+promotionToggle.addEventListener('change', () => {
+    promotionEnabled = promotionToggle.checked;
+
+    // 根据开关状态更新文本和样式
+    if (promotionEnabled) {
+        promotionStatus.textContent = "开启";
+        promotionStatus.style.color = '#5CB85C';
+    } else {
+        promotionStatus.textContent = "关闭";
+        promotionStatus.style.color = '#FFFFFF';
+    }
+});
+
+// TODO：获取数据并发送给服务器
+function getFormData() {
+    return {
+        title: document.getElementById('title-input').value,
+        description: document.getElementById('description-input').value,
+        promotionEnabled: promotionEnabled,  // 获取推广分成的状态
+    };
+}
+
+// #region 创建设置参数区域
 // 详情设置区域的 MutationObserver
 const settingsObserver = new MutationObserver(() => {
     const inputTitle = document.getElementById('title-input');
