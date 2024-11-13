@@ -687,6 +687,41 @@ async def get_wss_server_url():
                 )
 
 
+@server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
+async def getProducts(req):
+    jsonData = {}
+    async with aiohttp.ClientSession() as session:
+        jsonData["token"] = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE0MjAyMjUsImV4cCI6MTczMTQyNzQyNX0.mkxso5vSe8K9l_O-aERavztY8veYqH_LyJXk8tbq1Ro"  # 写死
+        )
+        async with session.post(
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
+        ) as response:
+            res_js = await response.json()
+            data = res_js.get("data", {})
+            print("res_js", res_js)
+
+            return web.json_response(res_js)
+
+
+@server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_3)
+async def deleteProduct(req):
+    jsonData = await req.json()
+    async with aiohttp.ClientSession() as session:
+        jsonData["token"] = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE0MjAyMjUsImV4cCI6MTczMTQyNzQyNX0.mkxso5vSe8K9l_O-aERavztY8veYqH_LyJXk8tbq1Ro"  # 写死
+        )
+        jsonData["product_id"] = "xxxx"  # 写死
+        async with session.post(
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
+        ) as response:
+            res_js = await response.json()
+            data = res_js.get("data", {})
+            print("res_js", res_js)
+
+            return web.json_response(res_js)
+
+
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
     jsonData = await req.json()
