@@ -758,7 +758,7 @@ headerImageSection.innerHTML = `
                 <span style="font-size: 2rem; font-weight: bold; text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.5);">+</span>
             </div>
         </div>
-         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px;">点此选择图片/视频</p>
+         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px;">最多选择三张图片/视频</p>
     </div>
     
     <div id="delete-area" style="
@@ -769,7 +769,7 @@ headerImageSection.innerHTML = `
         color: white;
         text-align: center;
         line-height: 50px;
-        margin-top: 100px;
+        margin-top: 120px;
         display: none;
         box-shadow: 0px 4px 15px rgba(255, 59, 48, 0.5); 、
         transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -858,14 +858,15 @@ const updateCarouselControls = () => {
         carouselControls.style.display = 'none';
     }
 };
-
 // 给未选择图片的“+”号区域添加悬停效果
 addImageArea.addEventListener('mouseenter', () => {
+    console.log("wwwwwww")
     if (selectedImages.length === 0) {
         addImageArea.style.boxShadow = '0px 6px 12px rgba(92, 184, 92, 0.5)';
         addImageArea.style.transform = 'scale(1.05)';
     }
 });
+
 
 addImageArea.addEventListener('mouseleave', () => {
     if (selectedImages.length === 0) {
@@ -873,7 +874,6 @@ addImageArea.addEventListener('mouseleave', () => {
         addImageArea.style.transform = 'scale(1)';
     }
 });
-
 // 图片选择逻辑
 const selectImage = () => {
     const fileInput = document.createElement('input');
@@ -909,12 +909,12 @@ const selectImage = () => {
 
                 // 悬停效果
                 imageThumbnail.addEventListener('mouseenter', () => {
-                    imageThumbnail.style.transform = 'scale(1.1)';
+                    imageThumbnail.style.transform = 'scale(1.1)'; // 稍微放大
                     imageThumbnail.style.boxShadow = '0px 10px 18px rgba(0, 0, 0, 0.3)';
+                    imageThumbnail.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease'; // 平滑过渡
                 });
-
                 imageThumbnail.addEventListener('mouseleave', () => {
-                    imageThumbnail.style.transform = 'scale(1)';
+                    imageThumbnail.style.transform = 'scale(1)'; // 恢复大小
                     imageThumbnail.style.boxShadow = '0px 6px 12px rgba(0, 0, 0, 0.25)';
                 });
 
@@ -928,29 +928,10 @@ const selectImage = () => {
                 imageThumbnail.addEventListener('dragend', () => {
                     deleteArea.style.display = 'none';
                 });
-
-                // 拖拽排序功能
-                imageThumbnail.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                });
-
-                imageThumbnail.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    const draggedImageUrl = e.dataTransfer.getData('text/plain');
-                    const draggedIndex = selectedImages.indexOf(draggedImageUrl);
-                    const targetIndex = selectedImages.indexOf(imageThumbnail.dataset.imageId);
-                    if (draggedIndex !== targetIndex) {
-                        // 交换图片的位置
-                        [selectedImages[draggedIndex], selectedImages[targetIndex]] = [selectedImages[targetIndex], selectedImages[draggedIndex]];
-                        updateThumbnailDisplay();
-                    }
-                });
-
-                // 删除图片逻辑
                 deleteArea.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.6)';
-                    deleteArea.style.boxShadow = '0px 6px 20px rgba(255, 59, 48, 0.7)';
+                    deleteArea.style.boxShadow = '0px 6px 20px rgba(255, 59, 48, 0.7)'; 
                 });
 
                 deleteArea.addEventListener('dragleave', () => {
@@ -958,24 +939,43 @@ const selectImage = () => {
                     deleteArea.style.boxShadow = '0px 4px 15px rgba(255, 59, 48, 0.5)';
                 });
 
+                // 删除图片逻辑
                 deleteArea.addEventListener('drop', (e) => {
                     e.preventDefault();
                     const imageToDelete = e.dataTransfer.getData('text/plain');
+
+                    // 删除 selectedImages 数组中的特定图片
                     selectedImages = selectedImages.filter(img => img !== imageToDelete);
+
+                    // 删除对应的缩略图
                     const imageThumbnails = imageSelectionContainer.querySelectorAll('.image-thumbnail');
                     imageThumbnails.forEach(thumbnail => {
                         if (thumbnail.dataset.imageId === imageToDelete) {
-                            thumbnail.remove();
+                            thumbnail.remove(); // 删除该缩略图
                         }
                     });
+
+                    // 更新预览区显示
                     updateThumbnailDisplay();
+
+                    // 更新轮播图控制点
+                    updateCarouselControls();
+
+                    // 恢复删除区域样式
+                    deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.4)';
+                    deleteArea.style.boxShadow = '0px 4px 15px rgba(255, 59, 48, 0.5)';
+
+                    // 如果图片数量小于3，显示“+”按钮
+                    if (selectedImages.length < 3) {
+                        addImageArea.style.display = 'flex';
+                    }
                 });
 
                 // 添加缩略图到容器
                 imageSelectionContainer.insertBefore(imageThumbnail, addImageArea);
                 updateThumbnailDisplay();
 
-                // 如果图片数量小于3，显示“+”按钮
+                // 如果图片数量小于3，添加新的“+”号选择按钮
                 if (selectedImages.length < 3) {
                     addImageArea.style.display = 'flex';
                 } else {
