@@ -779,19 +779,19 @@ headerImageSection.innerHTML = `
         <div id="thumbnail-display-area" style="
             width: 100%;
             height: 270px; 
-            border: 2px solid #5CB85C;
-            border-radius: 12px;
-            background-color: #262626;
-            box-shadow: inset 0px 4px 10px rgba(0, 0, 0, 0.4), 0px 8px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #444;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.1));
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.6), inset 0px 4px 8px rgba(0, 0, 0, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #aaa;
+            color: #bbb;
             text-align: center;
             margin-bottom: 20px;
-            overflow: hidden;
             position: relative;
-            transition: background-image 1s ease-in-out;
+            overflow: hidden;
+            transition: background-image 1s ease-in-out, box-shadow 0.3s ease;
         ">
             <p id="preview-text" style="margin: 0; font-size: 0.95rem; font-weight: bold; display: block;">此处显示选择的图片</p>
            
