@@ -1129,7 +1129,7 @@ settingsSection.innerHTML += `
             outline: none;
         ">
         
-        <label for="description-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置描述</label>
+        <label id="description-input-text" for="description-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置描述</label>
         <input type="text" id="description-input" placeholder="输入描述" style="
             width: 90%;
             padding: 10px;
@@ -1143,7 +1143,7 @@ settingsSection.innerHTML += `
         ">
 
         <!-- 设置作品价格 -->
-        <label for="price-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置作品价格</label>
+        <label id="price-input-text" for="price-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置作品价格</label>
         <input type="number" id="price-input" placeholder="输入价格" style="
             width: 90%;
             padding: 10px;
@@ -1154,9 +1154,23 @@ settingsSection.innerHTML += `
             color: #FFF;
             box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
             outline: none;
-        ">
+        " min="0" step="1">
+
+        <!-- 设置作品免费使用次数 -->
+        <label id="free-input-text" for="free-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置免费次数</label>
+        <input type="number" id="free-input" placeholder="输入免费次数" style="
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background-color: #2E2E2E;
+            color: #FFF;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
+            outline: none;
+        " min="0" step="1" max="3">
         
-        <label for="promotion-toggle" style="display: block; margin-bottom: 6px; color: #ccc;">推广分成</label>
+        <label id="switch-text" for="promotion-toggle" style="display: block; margin-bottom: 6px; color: #ccc;">推广分成</label>
         
         <!-- Switch 控件 -->
         <div style="display: flex; align-items: center;">
@@ -1169,19 +1183,26 @@ settingsSection.innerHTML += `
     </div>
 `;
 
-
-
 // 获取切换开关元素
 const promotionToggle = settingsSection.querySelector('#promotion-toggle');
 const promotionStatus = settingsSection.querySelector('#promotion-status');
 const productTitleInput = settingsSection.querySelector('#title-input');
 const productDesInput = settingsSection.querySelector('#description-input');
-const priceInput = settingsSection.querySelector('#price-input');  // 获取作品价格输入框
+const priceInput = settingsSection.querySelector('#price-input'); 
+const freeInput = settingsSection.querySelector('#free-input'); 
+const priceInputText = settingsSection.querySelector('#price-input-text'); 
+const freeInputText = settingsSection.querySelector('#free-input-text'); 
+const switchText = settingsSection.querySelector('#switch-text'); 
 
 // 为每个输入框添加焦点和失焦事件监听器
 addFocusBlurListener(productTitleInput);
 addFocusBlurListener(productDesInput);
 addFocusBlurListener(priceInput);
+addFocusBlurListener(freeInput);
+
+priceInputText.appendChild(createTooltip('单位为分'));
+freeInputText.appendChild(createTooltip('设置作品可被免费的使用次数，最多三次'));
+switchText.appendChild(createTooltip('开启后，作品被分享后付费，会从此次收益中分出10%给分享者'));
 
 // 默认状态
 let promotionEnabled = false;
