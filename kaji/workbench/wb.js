@@ -831,9 +831,6 @@ headerImageSection.innerHTML = `
 
 const headerImageSectionTips = headerImageSection.querySelector('h3');
 headerImageSectionTips.appendChild(createTooltip('最多可选择三张图片/视频作为作品头图，拖拽可调整删除'));
-
-// 获取元素
-
 // #endregion 创建头图设置区域
 
 //#region 创建预览区域
@@ -951,7 +948,7 @@ function adjustInfoCardHeight() {
         console.log("headerHeight",titleDescriptionHeight)
 
         // 计算 info-card 的高度
-        const remainingHeight = phoneHeight - headerHeight - titleDescriptionHeight - 60; // 额外的间距修正
+        const remainingHeight = phoneHeight - headerHeight - titleDescriptionHeight - 83; // 额外的间距修正
         console.log("remainingHeight",remainingHeight)
         // 设置 info-card 的高度
         infoCard.style.height = `${remainingHeight}px`;
@@ -1264,6 +1261,15 @@ const updateCarouselControls = () => {
         carouselControls2.style.display = 'none';
     }
 };
+// 给未选择图片的“+”号区域添加悬停效果
+addImageArea.addEventListener('mouseenter', () => {
+    console.log("wwwwwww")
+    if (selectedImages.length === 0) {
+        addImageArea.style.boxShadow = '0px 6px 12px rgba(92, 184, 92, 0.5)';
+        addImageArea.style.transform = 'scale(1.05)';
+    }
+});
+
 
 addImageArea.addEventListener('mouseleave', () => {
     if (selectedImages.length === 0) {
