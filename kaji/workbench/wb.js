@@ -246,15 +246,6 @@ style.textContent += `
     #header-image-input {
         margin-top: 10px;
     }
-    .phone-png {
-        display: block;
-        width: 110%;
-        max-width: none; 
-        margin: 0 auto;
-        position: relative;
-        left: -5%;
-        filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5));
-    }
     .image-thumbnail {
         width: 70px;
         height: 70px;
@@ -1064,50 +1055,123 @@ previewSection.innerHTML += `
     <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold;">作品展示预览</h3>
     <div class="preview-content">
         <!-- 手机边框图 -->
-        <div class="phone-contains" style="position: relative; width: 250px; margin: 0 auto; padding: 20px;">
-            <img src="kaji/workbench/phone.png" alt="手机边框" class="phone-png" style="
-                display: block;
+        <div class="phone-contains" style="position: relative; height:650px; margin: 0 auto; max-width: 375px;">
+            
+            <!-- 父容器，将头图和标题区域包裹 -->
+            <div class="content-wrapper" style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                padding: 20px;
+                box-sizing: border-box;
+            ">
+                <!-- 头图区 -->
+                <div id="real-time-header-image" style="
+                    width: 100%;
+                    height: 200px;
+                    background: linear-gradient(145deg, #3a3a3a, #2e2e2e);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #aaa;
+                    font-size: 1.2rem;
+                    font-weight: bold;
+                    text-align: center;
+                    overflow: hidden;
+                    border-radius: 10px;
+                    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.6), inset 2px 2px 5px rgba(255, 255, 255, 0.1);
+                ">此处是作品头图区</div>
+
+                <!-- 标题和描述卡片 -->
+                <div id="title-description-card" class="card" style="
+                    margin-top: 10px;
+                    padding: 15px;
+                    background-color: #333;
+                    border-radius: 8px;
+                    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+                ">
+                    <p id="real-time-title" style="font-weight: bold; color: #f3f3f3; font-size: 1rem; margin: 0;">
+                        此处是作品标题
+                    </p>
+                    <p id="real-time-description" class="description" style="
+                        color: #ccc;
+                        font-size: 0.9rem;
+                        margin: 4px 0 0;
+                        display: -webkit-box;
+                        -webkit-line-clamp: 3;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    ">
+                        此处是作品描述
+                    </p>
+                </div>
+
+                <!-- 提示性文本卡片 -->
+                <div id="info-card" style="
+                    margin-top: 10px;
+                    padding: 15px;
+                    background-color: #333;
+                    color: #888;
+                    font-size: 0.9rem;
+                    text-align: center;
+                    border-radius: 8px;
+                    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+                ">
+                    其他内容应用内查看
+                </div>
+            </div>
+
+            <!-- 手机边框 -->
+            <img id="phone-id" src="kaji/workbench/phone.jpg" alt="手机边框" class="phone-png" style="
                 width: 100%;
                 height: auto;
-                margin: 0 auto;
+                position: relative;
+                pointer-events: none;
                 filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5));
             "/>
-            <!-- 头图显示区域 -->
-            <div id="real-time-header-image" style="
-                position: absolute;
-                top: 30px;
-                left: 15px;
-                width: calc(100% - 30px);
-                height: 85%;
-                background-color: #333;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #aaa;
-                font-size: 1.2rem;
-                font-weight: bold;
-                text-align: center;
-                overflow: hidden;
-                border-radius: 8px;
-            ">实时显示头图</div>
-        </div>
-        
-        <div style="
-            padding: 12px;
-            background-color: #222;
-            border-radius: 8px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
-            margin-top: 16px;
-        ">
-            <p id="real-time-title" style="font-weight: bold; color: #f3f3f3; font-size: 1rem; margin: 0;">实时显示标题</p>
-            <p id="real-time-description" style="color: #ccc; font-size: 0.9rem; margin: 4px 0 0;">实时显示描述</p>
-        </div>
-        
-        <p style="text-align: center; color: #888; margin-top: 10px;">其余内容应用内查看</p>
+        </div>   
     </div>
 `;
+
+document.body.appendChild(previewSection);
+
 const previewSectionTitle = previewSection.querySelector('h3');
 previewSectionTitle.appendChild(createTooltip('实时预览展示给用户的作品效果，具体效果以客户端应用内为准'));
+
+// 动态计算 info-card 高度
+function adjustInfoCardHeight() {
+    const phoneContains = previewSection.querySelector('.phone-contains');
+    const headerImage = previewSection.querySelector('#real-time-header-image');
+    const titleDescriptionCard = previewSection.querySelector('#title-description-card');
+    const infoCard = previewSection.querySelector('#info-card');
+
+    // 检查元素是否存在，防止报错
+
+        // 获取各个部分的高度
+        const phoneHeight = phoneContains.offsetHeight;
+        console.log("phoneHeight",phoneHeight)
+        const headerHeight = headerImage.offsetHeight;
+        console.log("headerHeight",headerHeight)
+        const titleDescriptionHeight = titleDescriptionCard.offsetHeight;
+        console.log("headerHeight",titleDescriptionHeight)
+
+        // 计算 info-card 的高度
+        const remainingHeight = phoneHeight - headerHeight - titleDescriptionHeight - 60; // 额外的间距修正
+        console.log("remainingHeight",remainingHeight)
+        // 设置 info-card 的高度
+        infoCard.style.height = `${remainingHeight}px`;
+ 
+}
+
+// 调用调整函数
+adjustInfoCardHeight();
+
+// 如果需要在窗口调整大小时重新计算高度，可以添加事件监听
+window.addEventListener('resize', adjustInfoCardHeight);
+
 // #endregion 创建预览区域
 
 // #region 创建设置参数区域
@@ -1117,7 +1181,7 @@ settingsSection.innerHTML += `
     <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold;">设置作品详情</h3>
     <div class="settings-content">
         <label for="title-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置标题</label>
-        <input type="text" id="title-input" placeholder="输入标题" style="
+        <input type="text" id="title-input" placeholder="输入标题" maxlength="30" style="
             width: 90%;
             padding: 10px;
             margin-bottom: 16px;
@@ -1130,7 +1194,7 @@ settingsSection.innerHTML += `
         ">
         
         <label id="description-input-text" for="description-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置描述</label>
-        <input type="text" id="description-input" placeholder="输入描述" style="
+        <input type="text" id="description-input" placeholder="输入描述" maxlength="80" style="
             width: 90%;
             padding: 10px;
             margin-bottom: 16px;
@@ -1154,7 +1218,7 @@ settingsSection.innerHTML += `
             color: #FFF;
             box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
             outline: none;
-        " min="0" step="1">
+        " min="0" step="1" max="9999999">
 
         <!-- 设置作品免费使用次数 -->
         <label id="free-input-text" for="free-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置免费次数</label>
