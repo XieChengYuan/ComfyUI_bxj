@@ -853,10 +853,12 @@ previewSection.innerHTML += `
                 padding: 20px;
                 box-sizing: border-box;
             ">
+
                 <!-- 头图区 -->
                 <div id="real-time-header-image" style="
                     width: 100%;
                     height: 200px;
+                    margin-top:25px;
                     background: linear-gradient(-45deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3));
                     display: flex;
                     align-items: center;
@@ -867,7 +869,8 @@ previewSection.innerHTML += `
                     text-align: center;
                     overflow: hidden;
                     border-radius: 10px;
-                    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.6), inset 2px 2px 5px rgba(255, 255, 255, 0.1);
+                    /* 仅保留下边框的阴影 */
+                    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.6); /* 下边框阴影 */
                 ">此处是作品头图区</div>
                 <div id="carousel-controls" style="display: flex; position: absolute; left: 50%; transform: translate(-50%, -190%); gap: 5px;"></div>
 
