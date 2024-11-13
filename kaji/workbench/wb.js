@@ -858,7 +858,7 @@ previewSection.innerHTML += `
                 <div id="real-time-header-image" style="
                     width: 100%;
                     height: 200px;
-                    margin-top:25px;
+                    margin-top:23px;
                     background: linear-gradient(-45deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3));
                     display: flex;
                     align-items: center;
