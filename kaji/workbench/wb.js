@@ -61,7 +61,7 @@ const secondaryColor = '#1D1E1F';
 const style = document.createElement('style');
 
 //倾向型点击按钮特效
-style.textContent =  `
+style.textContent = `
    .glow-button {
         background-color: ${accentColor};
         border: none;
@@ -216,7 +216,7 @@ style.textContent += `
         border: none;
         display: none;
     }
-    /* 完成封装视图样式 */
+    /* 作品发布视图样式 */
     .complete-wrap-container {
         display: flex;
         height: calc(100% - 140px);
@@ -248,12 +248,56 @@ style.textContent += `
     }
     .phone-png {
         display: block;
-        width: 140%; /* 放大至140%，不建议使用 max-width */
-        max-width: none; /* 取消 max-width 限制 */
+        width: 110%;
+        max-width: none; 
         margin: 0 auto;
         position: relative;
-        left: -20%; /* 左偏移调整以确保居中 */
+        left: -5%;
         filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5));
+    }
+    .image-thumbnail {
+        width: 70px;
+        height: 70px;
+        background-size: cover;
+        background-position: center;
+        border-radius: 12px;
+        position: relative;
+        cursor: grab;
+        border: 2px solid #5CB85C;
+        box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.25);
+        transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s ease;
+    }
+
+    /* 鼠标悬停时，增加微光和放大效果 */
+    .image-thumbnail:hover {
+        transform: scale(1.05);
+        box-shadow: 0px 10px 15px rgba(0, 0, 0, 0.3), inset 0px 4px 10px rgba(255, 255, 255, 0.05);
+        filter: brightness(1.1) blur(2px); /* 微光效果 */
+    }
+
+    /* 删除区域效果 */
+    #delete-area {
+        width: 100%;
+        height: 50px;
+        background-color: rgba(139, 0, 0, 0.2);
+        border-radius: 8px;
+        color: white;
+        text-align: center;
+        line-height: 50px;
+        margin-top: 20px;
+        display: none;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5);
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: 10;
+        transition: background-color 0.3s ease;
+    }
+
+    /* 删除区域鼠标悬停时，增加微光效果 */
+    #delete-area:hover {
+        background-color: rgba(139, 0, 0, 0.5);
+        filter: brightness(1.2) blur(1px); /* 微光效果 */
     }
     /* 作品管理视图样式 */
     .work-management-container {
@@ -348,7 +392,7 @@ document.head.appendChild(style);
 const gctest = {
     type: 'generate_submit',
     data: {
-        sub_type:"plugin",
+        sub_type: "plugin",
         medias: [{
             "url_temp": "https://env-00jxh693vso2.normal.cloudstatic.cn/1730723029103.jpg?expire_at=1730723630&er_sign=6d24ee45e1ec23df910f710fad3b2002",
             "index": "10"
@@ -425,7 +469,7 @@ function createTooltip(text) {
 
 function createUserInputFormComponent(title, inputField) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
-    
+
     // 创建新的表单组件
     const formComponent = document.createElement('div');
     formComponent.className = 'user-form-component';
@@ -433,7 +477,7 @@ function createUserInputFormComponent(title, inputField) {
     formComponent.style.borderRadius = '4px';
     formComponent.style.backgroundColor = '#2E2E2E';
     formComponent.style.marginTop = '10px';
-    formComponent.dataset.componentName = title; 
+    formComponent.dataset.componentName = title;
 
     // 创建标题栏
     const formTitle = document.createElement('p');
@@ -454,12 +498,12 @@ function createUserInputFormComponent(title, inputField) {
     userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
     userInput.style.outline = 'none';
     userInput.style.transition = 'all 0.3s ease';
-    
+
     userInput.addEventListener('focus', () => {
         userInput.style.borderColor = '#5CB85C'; // 绿色边框
         userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
     });
-    
+
     userInput.addEventListener('blur', () => {
         userInput.style.borderColor = '#555'; // 恢复原边框颜色
         userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
@@ -472,7 +516,7 @@ function createUserInputFormComponent(title, inputField) {
 
     // 实时更新标题
     inputField.addEventListener('input', () => {
-        formTitle.textContent = inputField.value || inputField.placeholder; 
+        formTitle.textContent = inputField.value || inputField.placeholder;
     });
 }
 // #endregion 公共组件
@@ -482,7 +526,7 @@ function createUserInputFormComponent(title, inputField) {
 const workbenchButton = document.createElement('button');
 workbenchButton.innerText = '咔叽工作台';
 workbenchButton.id = 'workbench-button';
-workbenchButton.classList.add('glow-button'); 
+workbenchButton.classList.add('glow-button');
 
 // 创建插件 UI 遮罩层
 const overlay = document.createElement('div');
@@ -585,12 +629,12 @@ nodeSelect.addEventListener('change', (event) => {
         inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
         inputField.style.outline = 'none';
         inputField.style.transition = 'all 0.3s ease';
-        
+
         inputField.addEventListener('focus', () => {
             inputField.style.borderColor = '#5CB85C'; // 绿色边框
             inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
         });
-        
+
         inputField.addEventListener('blur', () => {
             inputField.style.borderColor = '#555'; // 恢复原边框颜色
             inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
@@ -618,10 +662,10 @@ nodeSelect.addEventListener('change', (event) => {
 });
 
 // 使用事件委托方式添加删除按钮的点击事件
-dynamicContainer.addEventListener('click', function(event) {
+dynamicContainer.addEventListener('click', function (event) {
     if (event.target.classList.contains('delete-button')) {
         const nodeComponent = event.target.closest('.node-component');
-        
+
         // 获取组件名称并删除对应的用户输入表单组件
         const componentName = nodeComponent.dataset.componentName;
         removeUserInputFormComponent(componentName);
@@ -640,7 +684,7 @@ dynamicContainer.addEventListener('click', function(event) {
 function removeUserInputFormComponent(title) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
     const formComponent = userInputFormContainer.querySelector(`.user-form-component[data-component-name="${title}"]`);
-    
+
     if (formComponent) {
         formComponent.remove();
     }
@@ -691,30 +735,411 @@ const completeWrapContainer = document.createElement('div');
 completeWrapContainer.className = 'complete-wrap-container';
 completeWrapContainer.style.display = 'none';
 
-// 创建头图设置区域
+// #region创建头图设置区域
 const headerImageSection = document.createElement('div');
 headerImageSection.className = 'header-image-section';
 headerImageSection.innerHTML = `
-    <h3>头图设置</h3>
-    <p>在此设置作品的头图。</p>
-`;
+    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">设置作品头图</h3>
+    
+    <div class="header-image-content">
+        <div id="thumbnail-display-area" style="
+            width: 100%;
+            height: 270px; 
+            border: 2px solid #5CB85C;
+            border-radius: 12px;
+            background-color: #262626;
+            box-shadow: inset 0px 4px 10px rgba(0, 0, 0, 0.4), 0px 8px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            text-align: center;
+            margin-bottom: 20px;
+            overflow: hidden;
+            position: relative;
+            transition: background-image 1s ease-in-out;
+        ">
+            <p id="preview-text" style="margin: 0; font-size: 0.95rem; font-weight: bold; display: block;">显示选择的图片区域</p>
+           
+            <div id="carousel-controls" style="display: none; position: absolute; bottom: 15px; display: flex; gap: 5px;"></div>
+        </div>
 
-// 创建预览区域
-const previewSection = document.createElement('div');
-previewSection.className = 'preview-section';
-previewSection.innerHTML = `
-    <h3>预览效果</h3>
-    <div class="preview-content">
-        <img src="kaji/workbench/phone.png" class="phone-png"/>
+        <div class="image-selection-container" style="display: flex; gap: 10px; justify-content: center; margin-top: 12px;">
+            <div class="add-image-area" style="
+                width: 70px;
+                height: 70px;
+                background-color: #333;
+                color: #5CB85C;
+                font-size: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 12px;
+                border: 2px solid #5CB85C;
+                cursor: pointer;
+                transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+                box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.25), inset 0px 4px 10px rgba(255, 255, 255, 0.05);
+            ">
+                <span style="font-size: 2rem; font-weight: bold; text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.5);">+</span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="delete-area" style="
+        width: 100%;
+        height: 50px;
+        background-color: rgba(255, 59, 48, 0.4);
+        border-radius: 8px;
+        color: white;
+        text-align: center;
+        line-height: 50px;
+        margin-top: 150px;
+        display: none;
+        box-shadow: 0px 4px 15px rgba(255, 59, 48, 0.5); 、
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+    ">
+        拖动图片至此处删除
     </div>
 `;
 
-// 创建设置参数区域
+// 获取元素
+const addImageArea = headerImageSection.querySelector('.add-image-area');
+const thumbnailDisplayArea = headerImageSection.querySelector('#thumbnail-display-area');
+const imageSelectionContainer = headerImageSection.querySelector('.image-selection-container');
+const deleteArea = headerImageSection.querySelector('#delete-area');
+const previewText = headerImageSection.querySelector('#preview-text');
+const carouselControls = headerImageSection.querySelector('#carousel-controls');
+
+// 数组用于存储选择的图片
+let selectedImages = [];
+let currentIndex = 0;
+
+// 更新预览区的文本提示状态
+const updatePreviewText = () => {
+    if (selectedImages.length === 0) {
+        previewText.style.display = 'block';
+    } else {
+        previewText.style.display = 'none';
+    }
+};
+
+// 更新预览区的显示
+const updateThumbnailDisplay = () => {
+    if (selectedImages.length === 0) {
+        thumbnailDisplayArea.style.backgroundImage = 'none';
+    } else if (selectedImages.length === 1) {
+        // 只有一张图片时，直接显示该图片
+        thumbnailDisplayArea.style.backgroundImage = `url(${selectedImages[0]})`;
+        thumbnailDisplayArea.style.backgroundSize = 'cover';
+        thumbnailDisplayArea.style.backgroundPosition = 'center';
+    } else {
+        // 多张图片时显示轮播图
+        thumbnailDisplayArea.style.backgroundImage = `url(${selectedImages[currentIndex]})`;
+        thumbnailDisplayArea.style.backgroundSize = 'cover';
+        thumbnailDisplayArea.style.backgroundPosition = 'center';
+    }
+    updatePreviewText();
+    updateCarouselControls();
+};
+
+// 自动轮播功能
+const startAutoSlide = () => {
+    setInterval(() => {
+        if (selectedImages.length > 1) {
+            currentIndex = (currentIndex + 1) % selectedImages.length;
+            updateThumbnailDisplay();
+        }
+    }, 3000); // 每3秒自动切换
+};
+
+const updateCarouselControls = () => {
+    carouselControls.innerHTML = ''; // 清空控制点
+
+    if (selectedImages.length > 1) {
+        // 如果图片数量大于1，显示轮播控制点
+        selectedImages.forEach((_, index) => {
+            const dot = document.createElement('div');
+            dot.style.cssText = `
+                width: 10px;
+                height: 10px;
+                background-color: ${index === currentIndex ? '#5CB85C' : '#888'};
+                border-radius: 50%;
+                cursor: pointer;
+            `;
+            dot.addEventListener('click', () => {
+                currentIndex = index;
+                updateThumbnailDisplay();
+            });
+            carouselControls.appendChild(dot);
+        });
+        carouselControls.style.display = 'flex'; // 显示控制点
+    } else {
+        // 如果只有一张图片，隐藏控制点
+        carouselControls.style.display = 'none';
+    }
+};
+
+// 图片选择逻辑
+const selectImage = () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target.result;
+                selectedImages.push(imageUrl);
+
+                // 创建缩略图方块
+                const imageThumbnail = document.createElement('div');
+                imageThumbnail.className = 'image-thumbnail';
+                imageThumbnail.dataset.imageId = imageUrl;
+                imageThumbnail.style.cssText = `
+                    width: 70px;
+                    height: 70px;
+                    background-image: url(${imageUrl});
+                    background-size: cover;
+                    background-position: center;
+                    border-radius: 12px;
+                    position: relative;
+                    cursor: grab;
+                    border: 2px solid #5CB85C;
+                    box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.25);
+                    transition: transform 0.3s ease, box-shadow 0.3s ease;
+                `;
+
+                // 悬停效果
+                imageThumbnail.addEventListener('mouseenter', () => {
+                    imageThumbnail.style.transform = 'scale(1.1)'; // 稍微放大
+                    imageThumbnail.style.boxShadow = '0px 10px 18px rgba(0, 0, 0, 0.3)';
+                    imageThumbnail.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease'; // 平滑过渡
+                });
+                imageThumbnail.addEventListener('mouseleave', () => {
+                    imageThumbnail.style.transform = 'scale(1)'; // 恢复大小
+                    imageThumbnail.style.boxShadow = '0px 6px 12px rgba(0, 0, 0, 0.25)';
+                });
+
+                // 添加拖拽事件
+                imageThumbnail.draggable = true;
+                imageThumbnail.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', imageUrl);
+                    deleteArea.style.display = 'block';
+                });
+
+                imageThumbnail.addEventListener('dragend', () => {
+                    deleteArea.style.display = 'none';
+                });
+                deleteArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.6)';
+                    deleteArea.style.boxShadow = '0px 6px 20px rgba(255, 59, 48, 0.7)'; 
+                });
+
+                deleteArea.addEventListener('dragleave', () => {
+                    deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.4)';
+                    deleteArea.style.boxShadow = '0px 4px 15px rgba(255, 59, 48, 0.5)';
+                });
+
+                // 删除图片逻辑
+                deleteArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const imageToDelete = e.dataTransfer.getData('text/plain');
+
+                    // 删除 selectedImages 数组中的特定图片
+                    selectedImages = selectedImages.filter(img => img !== imageToDelete);
+
+                    // 删除对应的缩略图
+                    const imageThumbnails = imageSelectionContainer.querySelectorAll('.image-thumbnail');
+                    imageThumbnails.forEach(thumbnail => {
+                        if (thumbnail.dataset.imageId === imageToDelete) {
+                            thumbnail.remove(); // 删除该缩略图
+                        }
+                    });
+
+                    // 更新预览区显示
+                    updateThumbnailDisplay();
+
+                    // 更新轮播图控制点
+                    updateCarouselControls();
+
+                    // 恢复删除区域样式
+                    deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.4)';
+                    deleteArea.style.boxShadow = '0px 4px 15px rgba(255, 59, 48, 0.5)';
+
+                    // 如果图片数量小于3，显示“+”按钮
+                    if (selectedImages.length < 3) {
+                        addImageArea.style.display = 'flex';
+                    }
+                });
+
+                // 添加缩略图到容器
+                imageSelectionContainer.insertBefore(imageThumbnail, addImageArea);
+                updateThumbnailDisplay();
+
+                // 如果图片数量小于3，添加新的“+”号选择按钮
+                if (selectedImages.length < 3) {
+                    addImageArea.style.display = 'flex';
+                } else {
+                    addImageArea.style.display = 'none';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    fileInput.click();
+};
+
+// 初始“+”按钮点击事件
+addImageArea.addEventListener('click', selectImage);
+
+// 初始化
+updatePreviewText();
+updateThumbnailDisplay();
+startAutoSlide();
+// #endregion 创建头图设置区域
+
+//#region 创建预览区域
+const previewSection = document.createElement('div');
+previewSection.className = 'preview-section';
+previewSection.innerHTML += `
+    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold;">作品展示预览</h3>
+    <div class="preview-content">
+        <!-- 手机边框图 -->
+        <div class="phone-contains" style="position: relative; width: 250px; margin: 0 auto; padding: 20px;">
+            <img src="kaji/workbench/phone.png" alt="手机边框" class="phone-png" style="
+                display: block;
+                width: 100%;
+                height: auto;
+                margin: 0 auto;
+                filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5));
+            "/>
+            <!-- 头图显示区域 -->
+            <div id="real-time-header-image" style="
+                position: absolute;
+                top: 30px;
+                left: 15px;
+                width: calc(100% - 30px);
+                height: 85%;
+                background-color: #333;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #aaa;
+                font-size: 1.2rem;
+                font-weight: bold;
+                text-align: center;
+                overflow: hidden;
+                border-radius: 8px;
+            ">实时显示头图</div>
+        </div>
+        
+        <div style="
+            padding: 12px;
+            background-color: #222;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            margin-top: 16px;
+        ">
+            <p id="real-time-title" style="font-weight: bold; color: #f3f3f3; font-size: 1rem; margin: 0;">实时显示标题</p>
+            <p id="real-time-description" style="color: #ccc; font-size: 0.9rem; margin: 4px 0 0;">实时显示描述</p>
+        </div>
+        
+        <p style="text-align: center; color: #888; margin-top: 10px;">其余内容应用内查看</p>
+    </div>
+`;
+const previewSectionTitle = previewSection.querySelector('h3');
+previewSectionTitle.appendChild(createTooltip('实时预览展示给用户的作品效果，具体效果以客户端应用内为准'));
+// #endregion 创建预览区域
+
+// #region 创建设置参数区域
 const settingsSection = document.createElement('div');
 settingsSection.className = 'settings-section';
-settingsSection.innerHTML = `
-    <h3>详情设置</h3>
+settingsSection.innerHTML += `
+    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold;">设置作品详情</h3>
+    <div class="settings-content">
+        <label for="title-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置标题</label>
+        <input type="text" id="title-input" placeholder="输入标题" style="
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background-color: #2E2E2E;
+            color: #FFF;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
+            outline: none;
+        ">
+        
+        <label for="description-input" style="display: block; margin-bottom: 6px; color: #ccc;">设置描述</label>
+        <input type="text" id="description-input" placeholder="输入描述" style="
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background-color: #2E2E2E;
+            color: #FFF;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
+            outline: none;
+        ">
+        
+        <label for="promotion-toggle" style="display: block; margin-bottom: 6px; color: #ccc;">推广分成</label>
+        <button id="promotion-toggle" style="
+            width: 100%;
+            padding: 10px;
+            background-color: #444;
+            color: #FFF;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s ease;
+        ">此处是一个开关</button>
+    </div>
 `;
+// 详情设置区域的 MutationObserver
+const settingsObserver = new MutationObserver(() => {
+    const inputTitle = document.getElementById('title-input');
+    const inputDescription = document.getElementById('description-input');
+    const promotionToggle = document.getElementById('promotion-toggle');
+
+
+    // 确保所有元素存在后再绑定事件
+    if (inputTitle && inputDescription && promotionToggle) {
+        // 监听标题和描述输入框的变化，实时更新预览区
+        inputTitle.addEventListener('input', (event) => {
+            document.getElementById('real-time-title').innerText = event.target.value;
+        });
+        inputDescription.addEventListener('input', (event) => {
+            document.getElementById('real-time-description').innerText = event.target.value;
+        });
+
+        // 监听推广分成开关按钮
+        promotionToggle.addEventListener('click', (event) => {
+            if (promotionToggle.innerText === '此处是一个开关') {
+                promotionToggle.innerText = '开关已开启';
+                promotionToggle.style.backgroundColor = '#5CB85C';
+            } else {
+                promotionToggle.innerText = '此处是一个开关';
+                promotionToggle.style.backgroundColor = '#444';
+            }
+        });
+
+        // 绑定完成后停止观察
+        settingsObserver.disconnect();
+    }
+});
+
+// 开始观察 settingsSection 的子元素变化
+settingsObserver.observe(settingsSection, { childList: true, subtree: true });
+// #endregion 创建设置参数区域
 
 // 将三个区域添加到 completeWrapContainer
 completeWrapContainer.appendChild(headerImageSection);
