@@ -784,7 +784,7 @@ headerImageSection.innerHTML = `
             overflow: hidden;
             transition: background-image 1s ease-in-out, box-shadow 0.3s ease;
         ">
-            <p id="preview-text" style="margin: 0; font-size: 0.95rem; font-weight: bold; display: block;">此处显示选择的图片</p>
+            <p id="preview-text" style="margin: 0; font-size: 0.95rem; font-weight: bold; display: block; color:#666;">此处显示选择的图片</p>
            
             <div id="carousel-controls" style="display: none; position: absolute; bottom: 15px; display: flex; gap: 5px;"></div>
         </div>
@@ -808,7 +808,7 @@ headerImageSection.innerHTML = `
                 <span style="font-size: 2rem; font-weight: bold; text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.5);">+</span>
             </div>
         </div>
-         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px;">最多选择三张图片/视频</p>
+         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px; color:#666;">最多选择三张图片/视频</p>
     </div>
     
     <div id="delete-area" style="
@@ -1052,11 +1052,9 @@ startAutoSlide();
 const previewSection = document.createElement('div');
 previewSection.className = 'preview-section';
 previewSection.innerHTML += `
-    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold;">作品展示预览</h3>
+    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; font-size: 1.3rem; text-align: center; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">作品展示预览</h3>
     <div class="preview-content">
-        <!-- 手机边框图 -->
         <div class="phone-contains" style="position: relative; height:650px; margin: 0 auto; max-width: 375px;">
-            
             <!-- 父容器，将头图和标题区域包裹 -->
             <div class="content-wrapper" style="
                 position: absolute;
@@ -1071,12 +1069,12 @@ previewSection.innerHTML += `
                 <div id="real-time-header-image" style="
                     width: 100%;
                     height: 200px;
-                    background: linear-gradient(145deg, #3a3a3a, #2e2e2e);
+                    background: linear-gradient(-45deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3));
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: #aaa;
-                    font-size: 1.2rem;
+                    color:#666;
+                    font-size: 0.9rem;
                     font-weight: bold;
                     text-align: center;
                     overflow: hidden;
@@ -1114,7 +1112,7 @@ previewSection.innerHTML += `
                     margin-top: 10px;
                     padding: 15px;
                     background-color: #333;
-                    color: #888;
+                    color: #666;
                     font-size: 0.9rem;
                     text-align: center;
                     border-radius: 8px;
@@ -1132,9 +1130,11 @@ previewSection.innerHTML += `
                 pointer-events: none;
                 filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5));
             "/>
-        </div>   
+        </div>
+
     </div>
 `;
+
 
 document.body.appendChild(previewSection);
 
@@ -1168,11 +1168,8 @@ function adjustInfoCardHeight() {
 
 // 调用调整函数
 adjustInfoCardHeight();
-
-// 如果需要在窗口调整大小时重新计算高度，可以添加事件监听
 window.addEventListener('resize', adjustInfoCardHeight);
-
-// #endregion 创建预览区域
+//#endregion 
 
 // #region 创建设置参数区域
 const settingsSection = document.createElement('div');
@@ -1336,6 +1333,27 @@ settingsObserver.observe(settingsSection, { childList: true, subtree: true });
 completeWrapContainer.appendChild(headerImageSection);
 completeWrapContainer.appendChild(previewSection);
 completeWrapContainer.appendChild(settingsSection);
+
+// #endregion 创建预览区域
+
+// #region 设置同步到预览区域
+// 获取预览区域的标题和描述元素
+const previewTitle = previewSection.querySelector('#real-time-title');
+const previewDescription = previewSection.querySelector('#real-time-description');
+
+// 监听标题输入框的变化，实时同步到预览区域的标题
+productTitleInput.addEventListener('input', (event) => {
+    previewTitle.textContent = event.target.value;  // 同步输入框内容到预览区标题
+    adjustInfoCardHeight();
+});
+
+// 监听描述输入框的变化，实时同步到预览区域的描述
+productDesInput.addEventListener('input', (event) => {
+    previewDescription.textContent = event.target.value;  // 同步输入框内容到预览区描述
+    adjustInfoCardHeight();
+});
+
+// #endregion 设置同步到预览区域
 
 // #endregion 创建“作品发布”视图容器
 
