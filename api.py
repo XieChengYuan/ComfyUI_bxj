@@ -691,13 +691,14 @@ async def get_wss_server_url():
                 )
 
 
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
+
+
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
 async def getProducts(req):
     jsonData = {}
     async with aiohttp.ClientSession() as session:
-        jsonData["token"] = (
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE0MjAyMjUsImV4cCI6MTczMTQyNzQyNX0.mkxso5vSe8K9l_O-aERavztY8veYqH_LyJXk8tbq1Ro"  # 写死
-        )
+        jsonData["token"] = token
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
         ) as response:
@@ -712,10 +713,8 @@ async def getProducts(req):
 async def deleteProduct(req):
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
-        jsonData["token"] = (
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE0MjAyMjUsImV4cCI6MTczMTQyNzQyNX0.mkxso5vSe8K9l_O-aERavztY8veYqH_LyJXk8tbq1Ro"  # 写死
-        )
-        jsonData["product_id"] = "xxxx"  # 写死
+        jsonData["token"] = token
+        # jsonData["product_id"] = "xxxx"  # 写死
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
         ) as response:
@@ -742,10 +741,8 @@ async def kaji_r(req):
                 newData = reformat(oldData)
 
                 # 有 id 说明是更新作品
-                newData["product_id"] = "672b821f31c9b7c2eecb13dd"
-                newData["token"] = (
-                    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE0MjAyMjUsImV4cCI6MTczMTQyNzQyNX0.mkxso5vSe8K9l_O-aERavztY8veYqH_LyJXk8tbq1Ro"
-                )
+                # newData["product_id"] = "672b821f31c9b7c2eecb13dd"
+                newData["token"] = token
                 logging.info(f"作品上传接口入参:{newData}")
 
             async with session.post(

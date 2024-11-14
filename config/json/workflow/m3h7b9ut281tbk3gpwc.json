@@ -1,6 +1,6 @@
 {
-    "last_node_id": 21,
-    "last_link_id": 35,
+    "last_node_id": 22,
+    "last_link_id": 37,
     "nodes": [
         {
             "id": 7,
@@ -233,47 +233,6 @@
             ]
         },
         {
-            "id": 18,
-            "type": "LoadImage",
-            "pos": [
-                -201,
-                1078
-            ],
-            "size": {
-                "0": 315,
-                "1": 314.00006103515625
-            },
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "outputs": [
-                {
-                    "name": "IMAGE",
-                    "type": "IMAGE",
-                    "links": [
-                        26
-                    ],
-                    "shape": 3,
-                    "label": "IMAGE",
-                    "slot_index": 0
-                },
-                {
-                    "name": "MASK",
-                    "type": "MASK",
-                    "links": null,
-                    "shape": 3,
-                    "label": "MASK"
-                }
-            ],
-            "properties": {
-                "Node name for S&R": "LoadImage"
-            },
-            "widgets_values": [
-                "1980sV2.jpg",
-                "image"
-            ]
-        },
-        {
             "id": 6,
             "type": "CLIPTextEncode",
             "pos": [
@@ -335,7 +294,7 @@
                 "1": 200
             },
             "flags": {},
-            "order": 2,
+            "order": 1,
             "mode": 0,
             "outputs": [
                 {
@@ -376,7 +335,7 @@
                 {
                     "name": "pixels",
                     "type": "IMAGE",
-                    "link": 35,
+                    "link": 37,
                     "label": "pixels",
                     "slot_index": 0
                 },
@@ -403,26 +362,25 @@
             }
         },
         {
-            "id": 21,
+            "id": 18,
             "type": "LoadImage",
             "pos": [
-                227,
-                890
+                -226,
+                1219
             ],
-            "size": [
-                315,
-                314
-            ],
+            "size": {
+                "0": 315,
+                "1": 314.00006103515625
+            },
             "flags": {},
-            "order": 3,
+            "order": 2,
             "mode": 0,
             "outputs": [
                 {
                     "name": "IMAGE",
                     "type": "IMAGE",
                     "links": [
-                        34,
-                        35
+                        26
                     ],
                     "shape": 3,
                     "label": "IMAGE",
@@ -445,11 +403,54 @@
             ]
         },
         {
+            "id": 22,
+            "type": "LoadImage",
+            "pos": [
+                216,
+                892
+            ],
+            "size": {
+                "0": 315,
+                "1": 314
+            },
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "outputs": [
+                {
+                    "name": "IMAGE",
+                    "type": "IMAGE",
+                    "links": [
+                        36,
+                        37
+                    ],
+                    "shape": 3,
+                    "label": "IMAGE",
+                    "slot_index": 0
+                },
+                {
+                    "name": "MASK",
+                    "type": "MASK",
+                    "links": null,
+                    "shape": 3,
+                    "label": "MASK",
+                    "slot_index": 1
+                }
+            ],
+            "properties": {
+                "Node name for S&R": "LoadImage"
+            },
+            "widgets_values": [
+                "example.png",
+                "image"
+            ]
+        },
+        {
             "id": 20,
             "type": "sdCpm",
             "pos": [
-                625,
-                1155
+                911,
+                1035
             ],
             "size": {
                 "0": 315,
@@ -480,7 +481,7 @@
                 {
                     "name": "input_img1(optional)",
                     "type": "IMAGE",
-                    "link": 34,
+                    "link": 36,
                     "label": "input_img1(optional)",
                     "slot_index": 3
                 },
@@ -547,8 +548,8 @@
                 "Node name for S&R": "sdCpm"
             },
             "widgets_values": [
-                "\u65e0\u7ffb\u8bd1\u8282\u70b9",
-                "1107",
+                "\u96c6\u7fa4\u90e8\u7f72\u7684\u4f5c\u54c12",
+                "1112",
                 1,
                 3,
                 "",
@@ -673,16 +674,16 @@
             "STRING"
         ],
         [
-            34,
-            21,
+            36,
+            22,
             0,
             20,
             3,
             "IMAGE"
         ],
         [
-            35,
-            21,
+            37,
+            22,
             0,
             12,
             0,
@@ -705,10 +706,10 @@
     "config": {},
     "extra": {
         "ds": {
-            "scale": 0.5054470284992986,
+            "scale": 0.740024994425826,
             "offset": {
-                "0": 771.3333826674691,
-                "1": -352.72630564271014
+                "0": 288.9864317863198,
+                "1": -655.0889603412653
             }
         }
     },
