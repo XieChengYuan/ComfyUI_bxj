@@ -391,21 +391,25 @@ async def send_heartbeat(websocket):
     while True:
         try:
             # 获取所有工作流id
-            base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
-            # 保存workflow
-            workflow_path = os.path.join(base_path, "workflow")
+            workflow_path = (
+                find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/workflow"
+            )
             uniqueids = get_filenames(workflow_path)
-            print(f"工作流id 列表：{uniqueids}")
 
             # 获取当前队列大小
+            rres = await get_remaining_from_comfyui()
+            queue_size = rres.get("exec_info").get("queue_remaining")
+
             payload = {
                 "type": "ping",
                 "data": {
                     "uni_hash": uni_hash,
-                    "queue_size": 5,  # 队列具体情况 todo写死先
+                    "queue_size": queue_size,
                     "uniqueids": uniqueids,
                 },
             }
+            print(f"ping 数据：{payload}")
+
             heartbeat_message = json.dumps(payload)
             await websocket.send(heartbeat_message)
             print("Sent heartbeat")
@@ -532,7 +536,7 @@ async def find_prompt_status(prompt_id):
     return None
 
 
-# 发送所有任务的排队情况
+# 发送所有任务的排队情况(此处也可以与 ping 事件合并)
 async def update_all_prompt_status():
     qres = await get_queue_from_comfyui()
 
@@ -875,6 +879,27 @@ async def get_queue_from_comfyui():
                 error_text = await response.text()
                 logging.error(
                     f"获取队列失败，状态码: {response.status}, 错误信息: {error_text}"
+                )
+                return None
+
+
+async def get_remaining_from_comfyui():
+    comfyui_address = get_comfyui_address()
+
+    # 构建请求的 URL
+    url = f"{comfyui_address}/prompt"
+    logging.info(f"请求 ComfyUI 的队列数据: {url}")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                response_json = await response.json()
+                logging.info(f"/prompt 接口出参: {response_json}")
+                return response_json
+            else:
+                error_text = await response.text()
+                logging.error(
+                    f"获取队列大小失败，状态码: {response.status}, 错误信息: {error_text}"
                 )
                 return None
 
