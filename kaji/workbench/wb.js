@@ -474,6 +474,14 @@ document.head.appendChild(style);
 // #endregion 所有样式
 
 // #region comfyui前后端通信接口
+
+// 请求url
+const END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts";      //获取作品
+END_POINT_URL1 = "/kaji-upload-file/uploadProduct"              //上传作品
+const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";    //删除作品
+
+//临时测试数据
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
 const gctest = {
     type: 'generate_submit',
     data: {
@@ -489,15 +497,12 @@ const gctest = {
     }
 }
 
+//通用请求口
 async function request(url, data = null, method = 'POST') {
     try {
         const options = {
             method,
-            headers: {
-                'Content-Type': 'application/json'
-            }
         };
-
 
         if (method === 'POST' || method === 'PUT') {
             options.body = JSON.stringify({ data });
@@ -517,6 +522,77 @@ async function request(url, data = null, method = 'POST') {
         return null;
     }
 }
+
+//请求获取系统中所有节点信息及其可用参数
+async function getObjectInfo() {
+    const res = await request("/protocal/objectInfo", null, 'GET');
+    if (res?.data?._id) {
+        console.log('请求 Comfyui 获取的object_info: ', res.data);
+    } else {
+        console.error('请求 Comfyui object_info信息失败: ', res);
+    }
+}
+
+//请求获取所有作品
+async function getProduct(data) {
+    const res = await request(END_POINT_URL_FOR_PRODUCT_1, data);
+    if (res?.data?._id) {
+        console.log('请求获取作品: ', res.data);
+    } else {
+        console.error('请求获取作品失败: ', res);
+    }
+}
+
+//请求删除作品
+async function deleteProduct(data) {
+    const res = await request(END_POINT_URL_FOR_PRODUCT_2, data);
+    if (res?.data?._id) {
+        console.log('请求删除作品 ', res.data);
+    } else {
+        console.error('请求删除作品失败: ', res);
+    }
+}
+
+//请求发布作品
+async function uploadProduct(data) {
+    const res = await request(END_POITN_URL, data);
+    if (res?.data?._id) {
+        console.log('请求发布作品 ', res.data);
+    } else {
+        console.error('请求发布作品失败: ', res);
+    }
+}
+
+//请求建立websocket连接
+async function getWss() {
+    const res = await request("/protocal/wss", null, 'GET');
+    if (res?.data?._id) {
+        console.log('请求 Comfyui 建立wss连接: ', res.data);
+    } else {
+        console.error('请求 Comfyui wss失败: ', res);
+    }
+}
+
+//请求生图
+async function postPrompt() {
+    const res = await request("/protocal/prompt", null, 'GET');
+    if (res?.data?._id) {
+        console.log('请求 Comfyui 生图: ', res.data);
+    } else {
+        console.error('请求 Comfyui 生图失败: ', res);
+    }
+}
+
+//预览生成结果
+async function getView() {
+    const res = await request("/protocal/view", null, 'GET');
+    if (res?.data?._id) {
+        console.log('请求 Comfyui view: ', res.data);
+    } else {
+        console.error('请求 Comfyui view信息失败: ', res);
+    }
+}
+
 // #endregion comfyui前后端通信接口
 
 // #region 公共组件/函数
@@ -957,7 +1033,7 @@ headerImageSectionTips.appendChild(createTooltip('最多可选择三张图片/�
 const previewSection = document.createElement('div');
 previewSection.className = 'preview-section';
 previewSection.innerHTML += `
-    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; font-size: 1.3rem; text-align: left; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">作品展示预览</h3>
+    <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; font-size: 1.2rem; text-align: left; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);">作品展示预览</h3>
     <div class="preview-content">
         <div class="phone-contains" style="position: relative; height:650px; margin: 0 auto; max-width: 375px;">
             <!-- 父容器，将头图和标题区域包裹 -->
@@ -1533,7 +1609,7 @@ workManagementContainer.style.display = 'none';
 const workManagementContent = document.createElement('div');
 workManagementContent.className = 'work-management-content';
 workManagementContent.innerHTML = `
-    <h3>作品管理</h3>
+    <h3  style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">作品管理</h3>
     <div class="empty-content">
         <p style="color: #888; font-size: 0.85rem; text-align: center;">
             这里显示当前管理的作品列表，暂时没有任何内容。
@@ -1548,7 +1624,7 @@ const emptyContent = workManagementContainer.querySelector('.empty-content');
 emptyContent.style.display = 'flex';
 emptyContent.style.alignItems = 'center'; 
 emptyContent.style.justifyContent = 'center';
-emptyContent.style.height = '90%'; 
+emptyContent.style.height = '85%'; 
 emptyContent.style.textAlign = 'center'; 
 // #endregion 创建作品管理视图容器
 
