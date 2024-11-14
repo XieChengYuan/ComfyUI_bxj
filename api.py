@@ -901,7 +901,7 @@ async def get_remaining_from_comfyui():
                 return None
             
 #获取系统中所有组件及可用参数
-@server.PromptServer.instance.routes.post("/protocal/objectInfo")
+@server.PromptServer.instance.routes.get("/plugin/objectInfo")
 async def deleteProduct(req):
     comfyui_address = get_comfyui_address()
     url = f"{comfyui_address}/object_info"
@@ -910,8 +910,8 @@ async def deleteProduct(req):
         async with session.get(url) as response:
             if response.status == 200:
                 response_json = await response.json()
-                logging.info(f"/object_info 接口出参: {response_json}")
-                return response_json
+                #logging.info(f"/object_info 接口出参: {response_json}")
+                return  web.json_response(response_json)
             else:
                 error_text = await response.text()
                 logging.error(

@@ -1,5 +1,5 @@
 /*咔叽工作台UI内容都放这一个文件里，后面发布时会对这个文件做代码混淆，由于这样会导致文件过长，为方便后期维护用regin/endregin对逻辑分块，可折叠*/
-
+import { api } from '../../../scripts/api.js'
 
 // #region UI组件及样式
 
@@ -473,15 +473,15 @@ style.textContent += `
 document.head.appendChild(style);
 // #endregion 所有样式
 
-// #region comfyui前后端通信接口
+// #region 前后端通信接口
 
 // 请求url
 const END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts";      //获取作品
-END_POINT_URL1 = "/kaji-upload-file/uploadProduct"              //上传作品
+const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"              //上传作品
 const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";    //删除作品
 
 //临时测试数据
-token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
+const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
 const gctest = {
     type: 'generate_submit',
     data: {
@@ -502,6 +502,9 @@ async function request(url, data = null, method = 'POST') {
     try {
         const options = {
             method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
         };
 
         if (method === 'POST' || method === 'PUT') {
@@ -509,7 +512,7 @@ async function request(url, data = null, method = 'POST') {
         }
 
         const response = await api.fetchApi(url, options);
-
+        console.log("请求响应数据：",response)
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -525,9 +528,9 @@ async function request(url, data = null, method = 'POST') {
 
 //请求获取系统中所有节点信息及其可用参数
 async function getObjectInfo() {
-    const res = await request("/protocal/objectInfo", null, 'GET');
-    if (res?.data?._id) {
-        console.log('请求 Comfyui 获取的object_info: ', res.data);
+    const res = await request("/plugin/objectInfo", null, 'GET');
+    if (res) {
+        console.log('请求 Comfyui 获取的object_info: ', res);
     } else {
         console.error('请求 Comfyui object_info信息失败: ', res);
     }
@@ -565,7 +568,7 @@ async function uploadProduct(data) {
 
 //请求建立websocket连接
 async function getWss() {
-    const res = await request("/protocal/wss", null, 'GET');
+    const res = await request("/plugin/wss", null, 'GET');
     if (res?.data?._id) {
         console.log('请求 Comfyui 建立wss连接: ', res.data);
     } else {
@@ -575,7 +578,7 @@ async function getWss() {
 
 //请求生图
 async function postPrompt() {
-    const res = await request("/protocal/prompt", null, 'GET');
+    const res = await request("/plugin/prompt", null, 'GET');
     if (res?.data?._id) {
         console.log('请求 Comfyui 生图: ', res.data);
     } else {
@@ -585,7 +588,7 @@ async function postPrompt() {
 
 //预览生成结果
 async function getView() {
-    const res = await request("/protocal/view", null, 'GET');
+    const res = await request("/plugin/view", null, 'GET');
     if (res?.data?._id) {
         console.log('请求 Comfyui view: ', res.data);
     } else {
@@ -750,6 +753,9 @@ panelsContainer.className = 'panels-container';
 // #region 创建作品参数面板
 //TODO：获取当前工作流可作为输入的节点
 // 创建作品参数模块容器
+
+//获取系统节点信息
+const objectInfo = getObjectInfo();
 const nodes = [
     { id: 'node1', name: '节点1', description: '这是节点1的描述' },
     { id: 'node2', name: '节点2', description: '这是节点2的描述' },

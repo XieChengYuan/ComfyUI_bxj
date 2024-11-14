@@ -16,6 +16,7 @@ function loadJS(scripts) {
         if (src) {
             scriptTag.src = src;
             scriptTag.defer = true;
+            scriptTag.type = "module";  // 这里加上 type="module"
             scriptTag.onload = () => {
                 console.log(`Script loaded: ${src}`);
             };
