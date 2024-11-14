@@ -4,7 +4,7 @@
 // #region UI组件及样式
 
 // #region svg代码统一存放
-//空页面的
+//空表单页面
 const noneSvgCode = `
 <svg t="1731335677949" class="icon" viewBox="0 0 1346 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1926" width="200" height="200">
     <defs>
@@ -32,7 +32,7 @@ const noneSvgCode = `
     <path d="M534.128385 463.298924a19.759863 19.759863 0 1 0 19.759863-19.759863 19.773169 19.773169 0 0 0-19.759863 19.759863z m328.372992-2.102396a19.759863 19.759863 0 1 0 19.746557-19.693331 20.225583 20.225583 0 0 0-19.746557 19.693331z m-66.07911 111.107646H636.999428a10.897864 10.897864 0 1 1 0-21.795728h159.422839a10.897864 10.897864 0 1 1 0 21.795728z m0 0" fill="#A5D6A7" filter="url(#brightnessFilter)" p-id="1940"></path>
 </svg>
 `;
-
+//空图页面
 const noneSvgCode2 = `
 <svg t="1731390596900" class="icon" viewBox="0 0 1402 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="11984" width="200" height="200">
     <defs>
@@ -52,6 +52,79 @@ const noneSvgCode2 = `
     <path d="M499.502 296.708a35.812 35.812 0 0 0 30.551 18.025 34.24 34.24 0 0 0 30.215-17.436c6.172-10.928 6.032-24.45-0.336-35.49-9.848-17.043-31.366-23.06-48.044-13.424-16.693 9.637-22.234 31.281-12.386 48.325z m97.518 37.663c-13.242-7.729-26.33-2.062-28.546 12.344l-17.38 113.524-145.071-85.118c-13.845-7.07-26.596 0.28-27.381 15.809l5.288 175.679 307.2-177.363-94.096-54.875z" fill="#FFFFFF" filter="url(#darkenFilter)" p-id="11989"></path>
 </svg>
 `;
+//删除图
+const deleteSvgCode = `
+<svg t="1731562937821" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2642" width="20" height="20">
+    <defs>
+        <filter id="darkenFilter1">
+            <feComponentTransfer>
+                <feFuncR type="linear" slope="0.5"/>
+                <feFuncG type="linear" slope="0.5"/>
+                <feFuncB type="linear" slope="0.5"/>
+            </feComponentTransfer>
+        </filter>
+    </defs>
+
+    <path d="M690.7392 937.4208H319.8464c-85.5552 0-155.136-69.5808-155.136-155.136V293.2224c0-19.8144 16.0256-35.84 35.84-35.84h609.4848c19.8144 0 35.84 16.0256 35.84 35.84v489.0624c0.0512 85.5552-69.5808 155.136-155.136 155.136zM236.3904 329.0624v453.2224c0 46.0288 37.4272 83.456 83.456 83.456h370.8928c46.0288 0 83.456-37.4272 83.456-83.456V329.0624H236.3904z" fill="#DCDCDC" filter="url(#darkenFilter1)" p-id="2643"></path>
+    <path d="M903.3728 329.0624H107.264c-19.8144 0-35.84-16.0256-35.84-35.84s16.0256-35.84 35.84-35.84h796.0576c19.8144 0 35.84 16.0256 35.84 35.84s-16.0256 35.84-35.7888 35.84z" fill="#DCDCDC" filter="url(#darkenFilter1)" p-id="2644"></path>
+    <path d="M358.0928 744.2432c-19.8144 0-35.84-16.0256-35.84-35.84V453.2224c0-19.8144 16.0256-35.84 35.84-35.84s35.84 16.0256 35.84 35.84v255.1808c0 19.8144-16.0256 35.84-35.84 35.84zM506.1632 744.2432c-19.8144 0-35.84-16.0256-35.84-35.84V453.2224c0-19.8144 16.0256-35.84 35.84-35.84s35.84 16.0256 35.84 35.84v255.1808c0 19.8144-16.0256 35.84-35.84 35.84zM657.7664 744.2432c-19.8144 0-35.84-16.0256-35.84-35.84V453.2224c0-19.8144 16.0256-35.84 35.84-35.84s35.84 16.0256 35.84 35.84v255.1808c0 19.8144-16.0768 35.84-35.84 35.84z" fill="#98E593" filter="url(#darkenFilter1)" p-id="2645"></path>
+    <path d="M734.8736 329.0624H266.8544c-11.6736 0-22.5792-5.6832-29.2864-15.2064s-8.3968-21.7088-4.4544-32.6656c22.2208-62.4128 92.416-207.5648 263.4752-207.5648 122.9824 0 216.8832 71.2704 271.5136 206.1312 4.4544 11.0592 3.1744 23.6032-3.4816 33.4848a35.95264 35.95264 0 0 1-29.7472 15.8208z m-412.928-71.68h355.7888c-43.2128-74.4448-103.9872-112.0768-181.1968-112.0768-91.9552 0-145.1008 58.0096-174.592 112.0768z" fill="#DCDCDC" filter="url(#darkenFilter1)" p-id="2646"></path>
+</svg>
+`;
+//节点图
+const nodeSvgCode = `
+<svg t="1731563064157" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="9808" width="24" height="24">
+    <defs>
+        <filter id="darkenFilter2">
+            <feComponentTransfer>
+                <feFuncR type="linear" slope="0.7"/>
+                <feFuncG type="linear" slope="0.7"/>
+                <feFuncB type="linear" slope="0.7"/>
+            </feComponentTransfer>
+        </filter>
+    </defs>
+
+    <path d="M512 780.52376322C363.70327653 780.52376322 243.47623678 660.29672347 243.47623678 512 243.47623678 363.70327653 363.70327653 243.47623678 512 243.47623678c148.29672347 0 268.52376322 120.22703976 268.52376322 268.52376322 0 148.29672347-120.22703976 268.52376322-268.52376322 268.52376322z m0-161.11425794a107.40950529 107.40950529 0 1 0 0-214.81901057 107.40950529 107.40950529 0 0 0 0 214.81901057z" fill="#67C23A" filter="url(#darkenFilter2)" p-id="9809"></path>
+</svg>
+`;
+//标题标识
+const titleSvgCode = `
+<svg t="1731566258336" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="22103" width="40" height="40">
+    <defs>
+        <filter id="darkenFilter3">
+            <feComponentTransfer>
+                <feFuncR type="linear" slope="0.7"/>
+                <feFuncG type="linear" slope="0.7"/>
+                <feFuncB type="linear" slope="0.7"/>
+            </feComponentTransfer>
+        </filter>
+    </defs>
+
+    <path d="M537.6 332.8l153.6 153.6-153.6 153.6-153.6-153.6 153.6-153.6z" fill="#98E593" filter="url(#darkenFilter3)" p-id="22104"></path>
+</svg>
+`;
+
+//提示icon
+const tipSvgCode = `
+<svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+    <!-- 添加滤镜 -->
+    <defs>
+        <filter id="darkenFilter4">
+            <feComponentTransfer>
+                <feFuncR type="linear" slope="0.7"/>
+                <feFuncG type="linear" slope="0.7"/>
+                <feFuncB type="linear" slope="0.7"/>
+            </feComponentTransfer>
+        </filter>
+    </defs>
+
+    <path d="M24 44C29.5228 44 34.5228 41.7614 38.1421 38.1421C41.7614 34.5228 44 29.5228 44 24C44 18.4772 41.7614 13.4772 38.1421 9.85786C34.5228 6.23858 29.5228 4 24 4C18.4772 4 13.4772 6.23858 9.85786 9.85786C6.23858 13.4772 4 18.4772 4 24C4 29.5228 6.23858 34.5228 9.85786 38.1421C13.4772 41.7614 18.4772 44 24 44Z" fill="#7ed321" stroke="#9b9b9b" stroke-width="4" stroke-linejoin="round" filter="url(#darkenFilter4)"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M24 11C25.3807 11 26.5 12.1193 26.5 13.5C26.5 14.8807 25.3807 16 24 16C22.6193 16 21.5 14.8807 21.5 13.5C21.5 12.1193 22.6193 11 24 11Z" fill="#ffffff" filter="url(#darkenFilter4)"/>
+    <path d="M24.5 34V20H23.5H22.5" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#darkenFilter4)"/>
+    <path d="M21 34H28" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#darkenFilter4)"/>
+</svg>
+`;
+
 // #endregion UI组件及样式
 
 // #region 所有样式
@@ -451,9 +524,11 @@ function createTooltip(text) {
     const tooltipContainer = document.createElement('span');
     tooltipContainer.className = 'tooltip-container';
 
+    // 创建一个包含 SVG 图标的元素，直接使用 $(tipSvgCode)
     const tooltipIcon = document.createElement('span');
     tooltipIcon.className = 'tooltip-icon';
-    tooltipIcon.innerText = 'i';
+    tooltipIcon.innerHTML = `${tipSvgCode}`;
+    tooltipIcon.style.transform = 'translateY(5px)';  
 
     const tooltipText = document.createElement('span');
     tooltipText.className = 'tooltip-text';
@@ -479,51 +554,71 @@ function createTooltip(text) {
     return tooltipContainer;
 }
 
+
 function createUserInputFormComponent(title, inputField) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
 
     // 创建新的表单组件
     const formComponent = document.createElement('div');
     formComponent.className = 'user-form-component';
-    formComponent.style.padding = '10px';
-    formComponent.style.borderRadius = '4px';
+    formComponent.style.padding = '12px 8px';
+    formComponent.style.borderRadius = '6px';
     formComponent.style.backgroundColor = '#2E2E2E';
-    formComponent.style.marginTop = '10px';
+    formComponent.style.marginTop = '8px';
+    formComponent.style.boxShadow = '0px 4px 6px rgba(0, 0, 0, 0.2), inset 2px 2px 6px rgba(0, 0, 0, 0.3)';
+    formComponent.style.display = 'flex';
+    formComponent.style.flexDirection = 'column';
+    formComponent.style.justifyContent = 'space-between';
+
     formComponent.dataset.componentName = title;
 
     // 创建标题栏
+    const formHeader = document.createElement('div');
+    formHeader.style.display = 'flex';
+    formHeader.style.justifyContent = 'flex-start';
+    formHeader.style.alignItems = 'center'; 
+
+    // 创建 SVG 图标容器
+    const svgContainer = document.createElement('div');
+    svgContainer.innerHTML = `${titleSvgCode}`;  // 这里插入SVG代码
+    svgContainer.style.marginRight = '-5px';  // 设置图标和标题之间的间距
+
+    // 创建标题
     const formTitle = document.createElement('p');
     formTitle.textContent = inputField.value || inputField.placeholder;
-    formTitle.style.fontWeight = 'bold';
+    formTitle.style.fontWeight = '500';
+    formTitle.style.fontSize = '1.0rem';
+    formTitle.style.color = '#dcdcdc';  
+    formTitle.style.margin = '0';
+    formTitle.style.paddingBottom = '7px'
 
+    // 添加SVG图标和标题到标题栏
+    formHeader.appendChild(svgContainer);
+    formHeader.appendChild(formTitle);
+
+    // 输入框
     const userInput = document.createElement('input');
     userInput.type = 'text';
     userInput.value = '';
-    userInput.style.width = '80%';
+    userInput.style.width = '90%';
     userInput.style.padding = '10px';
     userInput.style.borderRadius = '6px';
     userInput.style.border = '1px solid #555';
     userInput.style.backgroundColor = '#2E2E2E';
     userInput.style.color = '#FFFFFF';
-    userInput.style.fontSize = '1rem';
+    userInput.style.fontSize = '0.9rem';
     userInput.style.fontWeight = 'bold';
     userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
     userInput.style.outline = 'none';
     userInput.style.transition = 'all 0.3s ease';
 
-    userInput.addEventListener('focus', () => {
-        userInput.style.borderColor = '#5CB85C'; // 绿色边框
-        userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
-    });
+    addFocusBlurListener(userInput);
 
-    userInput.addEventListener('blur', () => {
-        userInput.style.borderColor = '#555'; // 恢复原边框颜色
-        userInput.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
-    });
-
-    // 添加表单组件到用户输入表单容器
-    formComponent.appendChild(formTitle);
+    // 添加标题栏和输入框到表单组件
+    formComponent.appendChild(formHeader);
     formComponent.appendChild(userInput);
+
+    // 添加到用户输入表单容器
     userInputFormContainer.appendChild(formComponent);
 
     // 实时更新标题
@@ -666,12 +761,56 @@ nodeSelect.addEventListener('change', (event) => {
         });
 
         nodeComponent.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0; color: #EAEAEA; font-weight: bold;">
-                <span>${selectedNode.name}</span>
-                <button class="delete-button" style="background: none; border: none; color: #E74C3C; cursor: pointer; font-size: 0.9rem;">🗑️</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0px;">
+                <div style="display: flex; align-items: center; gap: 2px;">
+                    ${nodeSvgCode}
+                    <span style="font-size: 1.0rem; font-weight: 500; color: #dcdcdc;">${selectedNode.name}</span>
+                </div>
+                <button class="delete-button" style="background: none; border: none; cursor: pointer; padding: 0 8px; border-radius: 50%; transition: transform 0.2s ease;">
+                    ${deleteSvgCode}
+                </button>
             </div>
-            <p style="margin: 8px 0 4px; font-size: 0.85rem; color: #CCCCCC;">设置用户输入的提示性标题</p>
+            <p style="margin-top: 6px; font-size: 0.8rem; color: #b0b0b0; line-height: 1.4; text-align: left; font-weight: 400;">
+                设置用户输入的提示性标题
+            </p>
         `;
+
+        const deleteButton = nodeComponent.querySelector('.delete-button');
+
+        // 添加按钮的 hover 动画效果
+        deleteButton.addEventListener('mouseenter', () => {
+            deleteButton.style.transform = 'scale(1.1)';
+        });
+        deleteButton.addEventListener('mouseleave', () => {
+            deleteButton.style.transform = 'scale(1)';
+        });
+        // 删除按钮的点击效果
+        deleteButton.addEventListener('click', (event) => {
+            // 阻止事件冒泡，确保不影响其他事件监听器
+            event.stopPropagation();
+
+            // 按钮点击时执行的动作
+            deleteButton.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                deleteButton.style.transform = 'scale(1)';
+                
+                // 触发删除动作
+                const nodeComponent = event.target.closest('.node-component');
+                const componentName = nodeComponent.dataset.componentName;
+                
+                // 删除用户输入表单组件
+                removeUserInputFormComponent(componentName);
+
+                // 删除作品输入信息中的组件
+                nodeComponent.remove();
+
+                // 如果动态容器为空时显示SVG
+                if (dynamicContainer.children.length === 0) {
+                    svgContains.style.display = 'flex'; // 确保居中显示
+                }
+            }, 100); // 等待动画完成
+        });
+
         nodeComponent.appendChild(inputField); // 添加输入框到组件中
         nodeComponent.dataset.componentName = selectedNode.name; // 为组件添加标识
 
@@ -683,25 +822,6 @@ nodeSelect.addEventListener('change', (event) => {
 
         // 隐藏提示文本
         svgContains.style.display = 'none';
-    }
-});
-
-// 使用事件委托方式添加删除按钮的点击事件
-dynamicContainer.addEventListener('click', function (event) {
-    if (event.target.classList.contains('delete-button')) {
-        const nodeComponent = event.target.closest('.node-component');
-
-        // 获取组件名称并删除对应的用户输入表单组件
-        const componentName = nodeComponent.dataset.componentName;
-        removeUserInputFormComponent(componentName);
-
-        // 删除作品输入信息中的组件
-        nodeComponent.remove();
-
-        // 如果动态容器为空时显示SVG
-        if (dynamicContainer.children.length === 0) {
-            svgContains.style.display = 'flex'; // 确保居中显示
-        }
     }
 });
 
@@ -1414,10 +1534,22 @@ const workManagementContent = document.createElement('div');
 workManagementContent.className = 'work-management-content';
 workManagementContent.innerHTML = `
     <h3>作品管理</h3>
-    <p>这里显示当前管理的作品列表，暂时没有任何内容。</p>
+    <div class="empty-content">
+        <p style="color: #888; font-size: 0.85rem; text-align: center;">
+            这里显示当前管理的作品列表，暂时没有任何内容。
+        </p>
+    </div>
 `;
 
 workManagementContainer.appendChild(workManagementContent);
+
+// 给提示性文本容器添加样式
+const emptyContent = workManagementContainer.querySelector('.empty-content');
+emptyContent.style.display = 'flex';
+emptyContent.style.alignItems = 'center'; 
+emptyContent.style.justifyContent = 'center';
+emptyContent.style.height = '90%'; 
+emptyContent.style.textAlign = 'center'; 
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容
