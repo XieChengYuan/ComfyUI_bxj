@@ -927,7 +927,18 @@ function createUserInput(detail) {
 
         // 创建预览容器
         previewContainer = createImagePreviewContainer(userInput);
-    } else {
+    } else if (Array.isArray(detail) && Array.isArray(detail[0]) && detail[0].length > 0) {
+        // 下拉框输入框
+        userInput = document.createElement('select');
+        
+        // 添加选项
+        detail[0].forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option;
+            optionElement.textContent = option;
+            userInput.appendChild(optionElement);
+        });
+    }else {
         const [inputType, inputParams] = detail;
         userInput = document.createElement('input');
 
