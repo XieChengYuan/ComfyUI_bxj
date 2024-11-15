@@ -403,6 +403,23 @@ style.textContent += `
         transform: translateX(20px);
     }
 
+    #search-input::placeholder {
+        color: #CCCCCC; 
+        opacity: 1;
+    }
+
+    /* 悬停和聚焦时的样式 */
+    #search-input:hover {
+        background-color: #555;
+        border-color: #67D67D;
+    }
+
+    #search-input:focus {
+        background-color: #555; 
+        border-color: #67D67D;
+        box-shadow: 0 0 8px rgba(92, 184, 92, 0.6);
+    }
+
 `;
 
 // 帮助提示组件样式
@@ -760,8 +777,8 @@ function createUserInputFormComponent(title, detail, inputField) {
     userInputFormContainer.appendChild(formComponent);
 
     // 实时更新标题
-    userInput.addEventListener('input', () => {
-        formHeader.querySelector('p').textContent = inputField.value || inputField.placeholder;
+    inputField.addEventListener('input', () => {
+        formHeader.querySelector('#form-title').textContent = inputField.value || inputField.placeholder;
     });
 }
 
@@ -797,11 +814,12 @@ function createFormHeader(title, inputField) {
     // 创建标题
     const formTitle = document.createElement('p');
     formTitle.textContent = inputField.value || inputField.placeholder;
+    formTitle.id = 'form-title'; 
     formTitle.style.fontWeight = '500';
     formTitle.style.fontSize = '1.0rem';
     formTitle.style.color = '#dcdcdc';
     formTitle.style.margin = '0';
-    formTitle.style.paddingBottom = '7px';
+    formTitle.style.paddingBottom = '5px';
 
     // 添加 SVG 图标和标题到标题栏
     formHeader.appendChild(svgContainer);
@@ -1053,11 +1071,26 @@ productInfo.style.position = 'relative';
 productInfo.innerHTML = `
     <h3>作品输入信息</h3>
     <div style="display: flex; align-items: center; margin-top: 20px;">
-        <label for="node-select" style="flex-shrink: 0; margin-right: 10px;">选择输入节点</label>
-        <select id="node-select" style="flex-grow: 1; height: 27px; width: 145px; padding: 2px 8px;">
-            <option value="" disabled selected>请选择节点</option>
-            ${nodes.map(node => `<option value="${node.id}">${node.name}</option>`).join('')}
-        </select>
+        <label for="search-input" style="flex-shrink: 0; margin-right: 10px;">选择输入节点</label>
+        <div id="custom-select" style="flex-grow: 1; position: relative; width: 145px;">
+            <input type="text" id="search-input" placeholder="请选择/搜索节点" style="
+                width: 100%; 
+                height: 27px; 
+                padding: 2px 8px; 
+                box-sizing: border-box; 
+                background-color: #444; 
+                border: 1px solid #5CB85C; 
+                color: #FFFFFF;
+                font-weight: bold;
+                border-radius: 4px;
+                outline: none;
+                transition: all 0.3s ease;
+            ">
+
+            <div id="dropdown" style="position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; display: none; z-index: 99999;">
+                ${nodes.map(node => `<div class="dropdown-item" data-value="${node.id}" style="padding: 8px; cursor: pointer;">${node.name}</div>`).join('')}
+            </div>
+        </div>
     </div>
     <div id="svg-contains" style="display: flex; justify-content: center; align-items: center; margin-top: 130px;">
          ${noneSvgCode}
@@ -1081,111 +1114,140 @@ dynamicContainer.style.overflowY = 'auto'; // 启用垂直滚动
 productInfo.appendChild(dynamicContainer);
 document.body.appendChild(productInfo);
 
-// 获取<select>元素和提示文本元素
-const nodeSelect = productInfo.querySelector('#node-select');
+// 获取搜索输入框和下拉菜单
+const searchInput = productInfo.querySelector('#search-input');
+const dropdown = productInfo.querySelector('#dropdown');
+const dropdownItems = productInfo.querySelectorAll('.dropdown-item');
 const svgContains = productInfo.querySelector('#svg-contains');
 
-// 监听选择框的change事件
-nodeSelect.addEventListener('change', (event) => {
-    const selectedNodeId = event.target.value;
-    const selectedNode = nodes.find(node => node.id === selectedNodeId);
+// 显示或隐藏下拉菜单
+searchInput.addEventListener('focus', () => {
+    dropdown.style.display = 'block';
+});
 
-    if (selectedNode) {
-        // 创建作品输入信息面板内的节点组件
-        const nodeComponent = document.createElement('div');
-        nodeComponent.className = 'node-component';
-        nodeComponent.style.border = '1px solid #444';
-        nodeComponent.style.padding = '10px';
-        nodeComponent.style.marginTop = '10px';
-        nodeComponent.style.borderRadius = '4px';
-        nodeComponent.style.backgroundColor = '#333';
+searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+        dropdown.style.display = 'none';
+    }, 200);
+});
 
-        // 创建输入框并添加到nodeComponent
-        const inputField = document.createElement('input');
-        inputField.type = 'text';
-        inputField.placeholder = `请输入${selectedNode.name}的提示标题`;
-        inputField.style.width = '80%';
-        inputField.style.padding = '10px';
-        inputField.style.borderRadius = '6px';
-        inputField.style.border = '1px solid #555';
-        inputField.style.backgroundColor = '#2E2E2E';
-        inputField.style.color = '#FFFFFF';
-        inputField.style.fontSize = '1rem';
-        inputField.style.fontWeight = 'bold';
-        inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
-        inputField.style.outline = 'none';
-        inputField.style.transition = 'all 0.3s ease';
+// 监听输入框的输入事件，进行过滤
+searchInput.addEventListener('input', (event) => {
+    const searchTerm = event.target.value.toLowerCase();
+    dropdownItems.forEach(item => {
+        const itemName = item.textContent.toLowerCase();
+        if (itemName.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+});
 
-        inputField.addEventListener('focus', () => {
-            inputField.style.borderColor = '#5CB85C'; // 绿色边框
-            inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
-        });
+// 选择下拉项
+dropdownItems.forEach(item => {
+    item.addEventListener('click', (event) => {
+        const selectedNodeId = event.target.dataset.value;
+        const selectedNode = nodes.find(node => node.id === selectedNodeId);
 
-        inputField.addEventListener('blur', () => {
-            inputField.style.borderColor = '#555'; // 恢复原边框颜色
+        if (selectedNode) {
+            searchInput.value = selectedNode.name; // 将选中的节点名称显示在输入框中
+            dropdown.style.display = 'none'; // 隐藏下拉菜单
+
+            // 创建作品输入信息面板内的节点组件
+            const nodeComponent = document.createElement('div');
+            nodeComponent.className = 'node-component';
+            nodeComponent.style.border = '1px solid #444';
+            nodeComponent.style.padding = '10px';
+            nodeComponent.style.marginTop = '10px';
+            nodeComponent.style.borderRadius = '4px';
+            nodeComponent.style.backgroundColor = '#333';
+
+            // 创建输入框并添加到nodeComponent
+            const inputField = document.createElement('input');
+            inputField.type = 'text';
+            inputField.placeholder = `请输入${selectedNode.name}的提示标题`;
+            inputField.style.width = '80%';
+            inputField.style.padding = '10px';
+            inputField.style.borderRadius = '6px';
+            inputField.style.border = '1px solid #555';
+            inputField.style.backgroundColor = '#2E2E2E';
+            inputField.style.color = '#FFFFFF';
+            inputField.style.fontSize = '1rem';
+            inputField.style.fontWeight = 'bold';
             inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
-        });
+            inputField.style.outline = 'none';
+            inputField.style.transition = 'all 0.3s ease';
 
-        nodeComponent.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0px;">
-                <div style="display: flex; align-items: center; gap: 2px;">
-                    ${nodeSvgCode}
-                    <span style="font-size: 1.0rem; font-weight: 500; color: #dcdcdc;">${selectedNode.name}</span>
-                </div>
-                <button class="delete-button" style="background: none; border: none; cursor: pointer; padding: 0 8px; border-radius: 50%; transition: transform 0.2s ease;">
-                    ${deleteSvgCode}
-                </button>
-            </div>
-            <p style="margin-top: 6px; font-size: 0.8rem; color: #b0b0b0; line-height: 1.4; text-align: left; font-weight: 400;">
-                设置用户输入的提示性标题
-            </p>
-        `;
-
-        const deleteButton = nodeComponent.querySelector('.delete-button');
-
-        // 添加按钮的 hover 动画效果
-        deleteButton.addEventListener('mouseenter', () => {
-            deleteButton.style.transform = 'scale(1.1)';
-        });
-        deleteButton.addEventListener('mouseleave', () => {
-            deleteButton.style.transform = 'scale(1)';
-        });
-        // 删除按钮的点击效果
-        deleteButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-        
-            confirmDialog('确认删除此节点吗？', () => {
-                // 执行删除操作
-                const nodeComponent = event.target.closest('.node-component');
-                const componentName = nodeComponent.dataset.componentName;
-        
-                // 删除用户输入表单组件
-                removeUserInputFormComponent(componentName);
-        
-                // 删除作品输入信息中的组件
-                nodeComponent.remove();
-        
-                // 如果动态容器为空时显示SVG
-                const dynamicContainer = document.querySelector('.dynamic-container');
-                const svgContains = document.querySelector('#svg-contains');
-                if (dynamicContainer.children.length === 0) {
-                    svgContains.style.display = 'flex'; // 确保居中显示
-                }
+            inputField.addEventListener('focus', () => {
+                inputField.style.borderColor = '#5CB85C'; // 绿色边框
+                inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 3px 3px 8px rgba(92, 184, 92, 0.5)';
             });
-        });
 
-        nodeComponent.appendChild(inputField); // 添加输入框到组件中
-        nodeComponent.dataset.componentName = selectedNode.name; // 为组件添加标识
+            inputField.addEventListener('blur', () => {
+                inputField.style.borderColor = '#555'; // 恢复原边框颜色
+                inputField.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
+            });
 
-        // 添加到动态容器
-        dynamicContainer.appendChild(nodeComponent);
+            nodeComponent.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0px;">
+                    <div style="display: flex; align-items: center; gap: 2px;">
+                        ${nodeSvgCode}
+                        <span style="font-size: 1.0rem; font-weight: 500; color: #dcdcdc;">${selectedNode.name}</span>
+                    </div>
+                    <button class="delete-button" style="background: none; border: none; cursor: pointer; padding: 0 8px; border-radius: 50%; transition: transform 0.2s ease;">
+                        ${deleteSvgCode}
+                    </button>
+                </div>
+                <p style="margin-top: 6px; font-size: 0.8rem; color: #b0b0b0; line-height: 1.4; text-align: left; font-weight: 400;">
+                    设置用户输入的提示性标题
+                </p>
+            `;
 
-        // 动态生成用户输入表单中的同步组件
-        createUserInputFormComponent(selectedNode.name,selectedNode.detail,inputField);
+            const deleteButton = nodeComponent.querySelector('.delete-button');
 
-        // 隐藏提示文本
-        svgContains.style.display = 'none';
-    }
+            // 添加按钮的 hover 动画效果
+            deleteButton.addEventListener('mouseenter', () => {
+                deleteButton.style.transform = 'scale(1.1)';
+            });
+            deleteButton.addEventListener('mouseleave', () => {
+                deleteButton.style.transform = 'scale(1)';
+            });
+
+            // 删除按钮的点击效果
+            deleteButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+
+                confirmDialog('确认删除此节点吗？', () => {
+                    const nodeComponent = event.target.closest('.node-component');
+                    const componentName = nodeComponent.dataset.componentName;
+
+                    // 删除用户输入表单组件
+                    removeUserInputFormComponent(componentName);
+
+                    // 删除作品输入信息中的组件
+                    nodeComponent.remove();
+
+                    // 如果动态容器为空时显示SVG
+                    if (dynamicContainer.children.length === 0) {
+                        svgContains.style.display = 'flex'; // 确保居中显示
+                    }
+                });
+            });
+
+            nodeComponent.appendChild(inputField); // 添加输入框到组件中
+            nodeComponent.dataset.componentName = selectedNode.name; // 为组件添加标识
+
+            // 添加到动态容器
+            dynamicContainer.appendChild(nodeComponent);
+
+            // 动态生成用户输入表单中的同步组件
+            createUserInputFormComponent(selectedNode.name, selectedNode.detail, inputField);
+
+            // 隐藏提示文本
+            svgContains.style.display = 'none';
+        }
+    });
 });
 
 // 删除用户输入表单中的同步组件
@@ -1197,6 +1259,7 @@ function removeUserInputFormComponent(title) {
         formComponent.remove();
     }
 }
+
 // #endregion 创建作品参数面板
 
 // #region 创建用户输入表单面板
