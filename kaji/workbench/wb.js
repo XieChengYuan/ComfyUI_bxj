@@ -555,12 +555,24 @@ async function request(endpoint, data = {}, method = 'POST', token = '') {
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
+
+        // 处理 `/view` 返回的 HTML 格式数据
+        if (endpoint === '/view') {
+            const blob = await response.blob();
+            console.log("blobblobblobblob",blob)
+            console.log("blobURL",URL.createObjectURL(blob))
+            return URL.createObjectURL(blob);
+        }
+
+        // 对于其他请求，继续返回 JSON 数据
         return await response.json();
     } catch (error) {
         console.error("Request failed:", error);
         throw error;
     }
 }
+
+
 
 // WebSocket
 function connectWebSocket(endpoint, data) {
@@ -571,10 +583,6 @@ function connectWebSocket(endpoint, data) {
 
     ws.onopen = () => {
         console.log("WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-        console.log("WebSocket message received:", event.data);
     };
 
     ws.onerror = (error) => {
@@ -683,10 +691,11 @@ async function postPrompt(output) {
 }
 
 //预览生成结果
-async function getView() {
-    const res = await request("/view", null, 'GET');
-    if (res?.data?._id) {
+async function getView(data) {
+    const res = await request("/view", data, 'GET');
+    if (res) {
         console.log('请求 Comfyui view: ', res.data);
+        return res;
     } else {
         console.error('请求 Comfyui view信息失败: ', res);
     }
@@ -1374,7 +1383,7 @@ mockUser.innerHTML = `
         ${noneSvgCode2}
     </div>
     <div id="progress-container" style="width: 100%; text-align: center; display: none; flex-direction: column; align-items: center; margin-top: 20px;">
-        <progress id="generation-progress" value="0" max="100" style="width: 90%; height: 15px; appearance: none; border-radius: 12px; overflow: hidden; background-color: #333;"></progress>
+        <progress id="generation-progress" value="0" max="100" style="width: 80%; height: 15px; appearance: none; border-radius: 12px; overflow: hidden; background-color: #333;"></progress>
         <p id="progress-text" style="margin-top: 10px; font-size: 0.9rem; color: #aaa; font-weight: bold; animation: breathe 1.5s infinite;">生成中...</p>
     </div>
 `;
@@ -1416,51 +1425,65 @@ progressStyle.innerHTML = `
     }
 `;
 document.head.appendChild(progressStyle); // 修复了变量名错误
-const media_output_dir = ".../../output"
 ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
-    console.log("收到的 WebSocket 消息：", message);
-    
-    if (message.type === 'execution_start') {
-        // 显示进度条容器并初始化进度为0
-        progressContainer.style.display = 'flex';
-        progressBar.value = 0;
-        progressText.textContent = "生成中...";
-        progressText.style.animation = 'breathe 1.5s infinite'; // 添加呼吸动画
-    }
-
-    if (message.type === 'progress' && message.data) {
-        const { value, max } = message.data;
-        const progressPercentage = (value / max) * 100;
+    // 包个异步，方便调用getview
+    (async () => {
+        const message = JSON.parse(event.data);
+        console.log("收到的 WebSocket 消息：", message);
         
-        // 更新进度条和文字
-        progressBar.value = progressPercentage;
-        progressText.textContent = `生成中... ${Math.round(progressPercentage)}%`;
-    }
+        if (message.type === 'execution_start') {
+            // 显示进度条容器并初始化进度为0
+            progressContainer.style.display = 'flex';
+            progressBar.value = 0;
+            progressText.textContent = "生成中...";
+            progressText.style.animation = 'breathe 1.5s infinite'; // 添加呼吸动画
+        }
 
-    if (message.type === 'executed'  && message.data?.output?.images?.length > 0) {
-        // 获取生成的图像文件名
-        const imageFilename = message.data.output.images[0].filename;
-        const imageUrl = `${media_output_dir}/${imageFilename}`; // 完整路径
+        if (message.type === 'progress' && message.data) {
+            const { value, max } = message.data;
+            const progressPercentage = (value / max) * 100;
+            
+            // 更新进度条和文字
+            progressBar.value = progressPercentage;
+            progressText.textContent = `生成中... ${Math.round(progressPercentage)}%`;
+        }
 
-        // 创建图片元素
-        const imageElement = new Image();
-        imageElement.src = imageUrl;
-        imageElement.alt = "生成的图像";
-        imageElement.style.maxWidth = "100%";
-        imageElement.style.borderRadius = "8px";
-        imageElement.style.boxShadow = "0px 4px 12px rgba(0, 0, 0, 0.3)";
+        if (message.type === 'executed' && message.data?.output?.images?.length > 0) {
+            // 获取生成的图像文件名
+            const imageFilename = message.data.output.images[0].filename;
+            let data = {
+                "filename": imageFilename,
+                "type": "output",
+            };
+            
+            // 使用 await 调用异步函数获取图像 URL
+            const imageUrl = await getView(data);
+            console.log("imageUrl",imageUrl)
+            if (imageUrl) {
+                // 创建图片元素
+                const imageElement = new Image();
+                imageElement.src = imageUrl;
+                imageElement.style.maxWidth = "100%";
+                imageElement.style.borderRadius = "8px";
+                imageElement.style.boxShadow = "0px 4px 12px rgba(0, 0, 0, 0.3)";
+                imageElement.style.margin = "auto"; 
+                imageElement.style.display = "block"; 
 
-        // 替换 SVG 显示生成的图像
-        const svgContainer = document.getElementById("moc-svg-contains");
-        svgContainer.innerHTML = ""; // 清空 SVG 容器
-        svgContainer.appendChild(imageElement);
+                // 替换 SVG 显示生成的图像
+                const svgContainer = document.getElementById("moc-svg-contains");
+                svgContainer.innerHTML = ""; // 清空 SVG 容器
+                svgContainer.style.marginTop = "100px"; // 设置图像的 margin-top
+                svgContainer.appendChild(imageElement);
+            } else {
+                console.error("未能提取图像 URL");
+            }
 
-        // 隐藏进度条容器
-        setTimeout(() => {
-            progressContainer.style.display = 'none';
-        }, 2000); // 可根据需求调整延迟时间
-    }
+            // 隐藏进度条容器
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+            }, 200); // 可根据需求调整延迟时间
+        }
+    })(); // 立即调用这个 async 函数
 };
 //#endregion
 // 创建用户输入表单容器
