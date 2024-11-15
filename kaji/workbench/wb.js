@@ -633,6 +633,112 @@ function createTooltip(text) {
 
     return tooltipContainer;
 }
+//通用的dialog对话框
+function confirmDialog(message, onConfirm) {
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '99999999';
+
+    // 创建对话框容器
+    const dialog = document.createElement('div');
+    dialog.style.backgroundColor = '#333';
+    dialog.style.borderRadius = '8px';
+    dialog.style.padding = '20px';
+    dialog.style.width = '300px';
+    dialog.style.boxShadow = '0px 4px 12px rgba(0, 0, 0, 0.5), 0px 0px 20px rgba(92, 184, 92, 0.2)';
+    dialog.style.textAlign = 'center';
+    dialog.style.color = '#dcdcdc';
+    dialog.style.position = 'relative';
+
+    // 添加对话框标题和内容
+    const dialogText = document.createElement('p');
+    dialogText.textContent = message;
+    dialogText.style.fontSize = '1rem';
+    dialogText.style.marginBottom = '20px';
+    dialogText.style.lineHeight = '1.4';
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'space-between';
+    buttonContainer.style.marginTop = '20px';
+
+    // 确认按钮
+    const confirmButton = document.createElement('button');
+    confirmButton.textContent = '确认';
+    confirmButton.style.flexGrow = '1';
+    confirmButton.style.marginRight = '10px';
+    confirmButton.style.padding = '10px 0';
+    confirmButton.style.backgroundColor = '#5CB85C';
+    confirmButton.style.color = '#fff';
+    confirmButton.style.border = 'none';
+    confirmButton.style.borderRadius = '5px';
+    confirmButton.style.cursor = 'pointer';
+    confirmButton.style.fontWeight = 'bold';
+    confirmButton.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+    confirmButton.style.transition = 'all 0.3s ease';
+    confirmButton.addEventListener('mouseenter', () => {
+        confirmButton.style.backgroundColor = '#4cae4c';
+    });
+    confirmButton.addEventListener('mouseleave', () => {
+        confirmButton.style.backgroundColor = '#5CB85C';
+    });
+
+    // 取消按钮
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = '取消';
+    cancelButton.style.flexGrow = '1';
+    cancelButton.style.padding = '10px 0';
+    cancelButton.style.backgroundColor = '#444';
+    cancelButton.style.color = '#fff';
+    cancelButton.style.border = 'none';
+    cancelButton.style.borderRadius = '5px';
+    cancelButton.style.cursor = 'pointer';
+    cancelButton.style.fontWeight = 'bold';
+    cancelButton.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+    cancelButton.style.transition = 'all 0.3s ease';
+    cancelButton.addEventListener('mouseenter', () => {
+        cancelButton.style.backgroundColor = '#555';
+    });
+    cancelButton.addEventListener('mouseleave', () => {
+        cancelButton.style.backgroundColor = '#444';
+    });
+
+    // 关闭对话框功能
+    const closeDialog = () => {
+        document.body.removeChild(overlay);
+    };
+
+    // 确认按钮点击事件
+    confirmButton.addEventListener('click', () => {
+        closeDialog();
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
+    });
+
+    // 取消按钮点击事件
+    cancelButton.addEventListener('click', closeDialog);
+
+    // 组装对话框
+    buttonContainer.appendChild(confirmButton);
+    buttonContainer.appendChild(cancelButton);
+    dialog.appendChild(dialogText);
+    dialog.appendChild(buttonContainer);
+    overlay.appendChild(dialog);
+
+    // 将对话框添加到页面
+    document.body.appendChild(overlay);
+}
 
 
 function createUserInputFormComponent(title, detail, inputField) {
@@ -1046,29 +1152,26 @@ nodeSelect.addEventListener('change', (event) => {
         });
         // 删除按钮的点击效果
         deleteButton.addEventListener('click', (event) => {
-            // 阻止事件冒泡，确保不影响其他事件监听器
             event.stopPropagation();
-
-            // 按钮点击时执行的动作
-            deleteButton.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                deleteButton.style.transform = 'scale(1)';
-                
-                // 触发删除动作
+        
+            confirmDialog('确认删除此节点吗？', () => {
+                // 执行删除操作
                 const nodeComponent = event.target.closest('.node-component');
                 const componentName = nodeComponent.dataset.componentName;
-                
+        
                 // 删除用户输入表单组件
                 removeUserInputFormComponent(componentName);
-
+        
                 // 删除作品输入信息中的组件
                 nodeComponent.remove();
-
+        
                 // 如果动态容器为空时显示SVG
+                const dynamicContainer = document.querySelector('.dynamic-container');
+                const svgContains = document.querySelector('#svg-contains');
                 if (dynamicContainer.children.length === 0) {
                     svgContains.style.display = 'flex'; // 确保居中显示
                 }
-            }, 100); // 等待动画完成
+            });
         });
 
         nodeComponent.appendChild(inputField); // 添加输入框到组件中
