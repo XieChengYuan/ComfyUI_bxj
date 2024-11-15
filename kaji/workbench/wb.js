@@ -656,6 +656,7 @@ async function postPrompt(output) {
     const res = await request("/prompt", data,'POST');
     if (res) {
         console.log('请求 Comfyui 生图: ', res);
+        return res;
     } else {
         console.error('请求 Comfyui 生图失败: ', res);
     }
@@ -1339,8 +1340,6 @@ const generateTestButton = userInput.querySelector('#generate-test-button');
 generateTestButton.addEventListener('click', async () => {
     try {
         const result = await postPrompt(output);
-        console.log("生成结果:", result);
-        // 可以在这里处理生成的结果，例如将其显示在预览区域
     } catch (error) {
         console.error("生成失败:", error);
     }
