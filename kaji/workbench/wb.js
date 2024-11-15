@@ -559,8 +559,6 @@ async function request(endpoint, data = {}, method = 'POST', token = '') {
         // 处理 `/view` 返回的 HTML 格式数据
         if (endpoint === '/view') {
             const blob = await response.blob();
-            console.log("blobblobblobblob",blob)
-            console.log("blobURL",URL.createObjectURL(blob))
             return URL.createObjectURL(blob);
         }
 
