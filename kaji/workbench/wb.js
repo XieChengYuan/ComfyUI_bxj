@@ -674,6 +674,13 @@ const ws = await getWss();
 
 //请求生图
 async function postPrompt(output) {
+    // 找到 `KSampler` 节点，随机生成一个新的 seed 值，不然第二次生图缓存直接跳过了
+    for (const item of Object.values(output)) {
+        if (item.class_type === "KSampler" && item.inputs) {
+            item.inputs.seed = Math.floor(10 ** 14 + Math.random() * 9 * 10 ** 14);
+            console.log("Updated seed:", item.inputs.seed);
+        }
+    }
     let data = {
         "client_id": clientId,
         "prompt": output,
@@ -930,7 +937,6 @@ function createUserInput(detail) {
     } else if (Array.isArray(detail) && Array.isArray(detail[0]) && detail[0].length > 0) {
         // 下拉框输入框
         userInput = document.createElement('select');
-        
         // 添加选项
         detail[0].forEach(option => {
             const optionElement = document.createElement('option');
