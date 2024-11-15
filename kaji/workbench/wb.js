@@ -651,18 +651,6 @@ async function getWss() {
             console.log("WebSocket 连接成功");
         };
 
-        ws.onmessage = (event) => {
-            console.log("收到 WebSocket 消息:", event.data);
-
-            // 如果消息是 JSON 格式，解析后处理
-            try {
-                const message = JSON.parse(event.data);
-                console.log("解析的消息内容:", message);
-            } catch (error) {
-                console.warn("收到非 JSON 格式消息:", event.data);
-            }
-        };
-
         ws.onerror = (error) => {
             console.error("WebSocket 错误:", error);
         };
@@ -1377,18 +1365,104 @@ generateTestButton.addEventListener('click', async () => {
     }
 });
 
+// #region 模拟用户生成面板
 const mockUser = document.createElement('div');
 mockUser.className = 'panel';
 mockUser.innerHTML = `
     <h3>模拟用户生成</h3>
-     <div id="moc-svg-contains" style="display: flex; justify-content: center; align-items: center; margin-top: 170px;">
-         ${noneSvgCode2}
+    <div id="moc-svg-contains" style="display: flex; justify-content: center; align-items: center; margin-top: 170px;">
+        ${noneSvgCode2}
+    </div>
+    <div id="progress-container" style="width: 100%; text-align: center; display: none; flex-direction: column; align-items: center; margin-top: 20px;">
+        <progress id="generation-progress" value="0" max="100" style="width: 90%; height: 15px; appearance: none; border-radius: 12px; overflow: hidden; background-color: #333;"></progress>
+        <p id="progress-text" style="margin-top: 10px; font-size: 0.9rem; color: #aaa; font-weight: bold; animation: breathe 1.5s infinite;">生成中...</p>
     </div>
 `;
 
-const generaateTips = mockUser.querySelector('h3');
-generaateTips.appendChild(createTooltip('此处可以预览用户生成的内容'));
+const generateTips = mockUser.querySelector('h3');
+generateTips.appendChild(createTooltip('此处可以预览用户生成的内容'));
 
+// 将面板添加到页面
+document.body.appendChild(mockUser);
+
+// 获取进度条容器和元素
+const progressContainer = document.getElementById('progress-container');
+const progressBar = document.getElementById('generation-progress');
+const progressText = document.getElementById('progress-text');
+
+// 添加进度条自定义样式和呼吸动画
+const progressStyle = document.createElement('style');
+progressStyle.innerHTML = `
+    /* 进度条样式 */
+    #generation-progress::-webkit-progress-bar {
+        background-color: #333;
+    }
+    #generation-progress::-webkit-progress-value {
+        background-color: #5CB85C; /* 绿色进度条颜色 */
+        transition: width 0.4s ease;
+    }
+    #generation-progress::-moz-progress-bar {
+        background-color: #5CB85C; /* 兼容 Firefox 的进度条颜色 */
+    }
+
+    /* 呼吸动画 */
+    @keyframes breathe {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+`;
+document.head.appendChild(progressStyle); // 修复了变量名错误
+const media_output_dir = ".../../output"
+ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    console.log("收到的 WebSocket 消息：", message);
+    
+    if (message.type === 'execution_start') {
+        // 显示进度条容器并初始化进度为0
+        progressContainer.style.display = 'flex';
+        progressBar.value = 0;
+        progressText.textContent = "生成中...";
+        progressText.style.animation = 'breathe 1.5s infinite'; // 添加呼吸动画
+    }
+
+    if (message.type === 'progress' && message.data) {
+        const { value, max } = message.data;
+        const progressPercentage = (value / max) * 100;
+        
+        // 更新进度条和文字
+        progressBar.value = progressPercentage;
+        progressText.textContent = `生成中... ${Math.round(progressPercentage)}%`;
+    }
+
+    if (message.type === 'executed'  && message.data?.output?.images?.length > 0) {
+        // 获取生成的图像文件名
+        const imageFilename = message.data.output.images[0].filename;
+        const imageUrl = `${media_output_dir}/${imageFilename}`; // 完整路径
+
+        // 创建图片元素
+        const imageElement = new Image();
+        imageElement.src = imageUrl;
+        imageElement.alt = "生成的图像";
+        imageElement.style.maxWidth = "100%";
+        imageElement.style.borderRadius = "8px";
+        imageElement.style.boxShadow = "0px 4px 12px rgba(0, 0, 0, 0.3)";
+
+        // 替换 SVG 显示生成的图像
+        const svgContainer = document.getElementById("moc-svg-contains");
+        svgContainer.innerHTML = ""; // 清空 SVG 容器
+        svgContainer.appendChild(imageElement);
+
+        // 隐藏进度条容器
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+        }, 2000); // 可根据需求调整延迟时间
+    }
+};
+//#endregion
 // 创建用户输入表单容器
 const userInputFormContainer = document.createElement('div');
 userInputFormContainer.className = 'user-input-form-container';
