@@ -635,7 +635,7 @@ function createTooltip(text) {
 }
 
 
-function createUserInputFormComponent(title, detail) {
+function createUserInputFormComponent(title, detail, inputField) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
 
     // 创建新的表单组件
@@ -660,12 +660,12 @@ function createUserInputFormComponent(title, detail) {
 
     // 创建 SVG 图标容器
     const svgContainer = document.createElement('div');
-    svgContainer.innerHTML = `${titleSvgCode}`; 
-    svgContainer.style.marginRight = '-5px';  
+    svgContainer.innerHTML = `${titleSvgCode}`;  // 这里插入SVG代码
+    svgContainer.style.marginRight = '-5px';  // 设置图标和标题之间的间距
 
     // 创建标题
     const formTitle = document.createElement('p');
-    formTitle.textContent = title;
+    formTitle.textContent = inputField.value || inputField.placeholder;
     formTitle.style.fontWeight = '500';
     formTitle.style.fontSize = '1.0rem';
     formTitle.style.color = '#dcdcdc';
@@ -676,26 +676,101 @@ function createUserInputFormComponent(title, detail) {
     formHeader.appendChild(svgContainer);
     formHeader.appendChild(formTitle);
 
-    // 根据 detail 创建不同类型的输入框
     let userInput;
-    const [inputType, inputParams] = detail;
+    let previewContainer;
 
-    if (inputType === 'INT' || inputType === 'FLOAT') {
+    // 检查 detail 类型
+    if (Array.isArray(detail) && detail.length > 1 && detail[1].image_upload) {
+        // 创建文件上传输入框
         userInput = document.createElement('input');
-        userInput.type = 'number';
-        userInput.value = inputParams.default || '';
-        userInput.min = inputParams.min !== undefined ? inputParams.min : '';
-        userInput.max = inputParams.max !== undefined ? inputParams.max : '';
-        userInput.step = inputType === 'FLOAT' ? '0.01' : '1';
-    } else if (inputType === 'STRING') {
-        userInput = document.createElement('input');
-        userInput.type = 'text';
-        userInput.value = inputParams.default || '';
+        userInput.type = 'file';
+        userInput.accept = 'image/*'; // 只允许上传图像文件
+        userInput.multiple = true;    // 允许多文件上传
+
+        // 创建预览容器
+        previewContainer = document.createElement('div');
+        previewContainer.style.display = 'flex';
+        previewContainer.style.flexWrap = 'wrap';
+        previewContainer.style.gap = '10px';
+        previewContainer.style.marginTop = '10px';
+
+        // 监听文件选择事件
+        userInput.addEventListener('change', () => {
+            // 清空之前的预览
+            previewContainer.innerHTML = '';
+
+            // 获取选中的文件列表
+            const files = userInput.files;
+            Array.from(files).forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        // 创建图片预览容器
+                        const imgContainer = document.createElement('div');
+                        imgContainer.style.position = 'relative';
+                        imgContainer.style.display = 'inline-block';
+
+                        // 创建图片预览元素
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.width = '80px';
+                        img.style.height = '80px';
+                        img.style.objectFit = 'cover';
+                        img.style.borderRadius = '6px';
+                        img.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+                        img.alt = file.name;
+
+                        // 创建删除按钮
+                        const deleteButton = document.createElement('span');
+                        deleteButton.textContent = '×';
+                        deleteButton.style.position = 'absolute';
+                        deleteButton.style.top = '-5px';
+                        deleteButton.style.right = '-5px';
+                        deleteButton.style.cursor = 'pointer';
+                        deleteButton.style.color = 'white';
+                        deleteButton.style.backgroundColor = 'red';
+                        deleteButton.style.borderRadius = '50%';
+                        deleteButton.style.padding = '2px 5px';
+                        deleteButton.style.fontSize = '12px';
+                        deleteButton.style.lineHeight = '1';
+
+                        // 添加删除功能
+                        deleteButton.addEventListener('click', () => {
+                            imgContainer.remove();      // 移除图像预览
+                            userInput.value = '';       // 清空输入框内容
+                        });
+
+                        // 将图片和删除按钮添加到图片容器
+                        imgContainer.appendChild(img);
+                        imgContainer.appendChild(deleteButton);
+
+                        // 添加图片容器到预览容器
+                        previewContainer.appendChild(imgContainer);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
     } else {
-        // 默认类型为文本输入框
-        userInput = document.createElement('input');
-        userInput.type = 'text';
-        userInput.value = '';
+        const [inputType, inputParams] = detail;
+
+        if (inputType === 'INT' || inputType === 'FLOAT') {
+            userInput = document.createElement('input');
+            userInput.type = 'number';
+            userInput.value = inputParams.default || '';
+            userInput.min = inputParams.min !== undefined ? inputParams.min : '';
+            userInput.max = inputParams.max !== undefined ? inputParams.max : '';
+            userInput.step = inputType === 'FLOAT' ? '0.01' : '1';
+        } else if (inputType === 'STRING') {
+            userInput = document.createElement('input');
+            userInput.type = 'text';
+            userInput.value = inputParams.default || '';
+        } else {
+            // 默认类型为文本输入框
+            userInput = document.createElement('input');
+            userInput.type = 'text';
+            userInput.value = '';
+        }
     }
 
     // 设置输入框样式
@@ -713,8 +788,9 @@ function createUserInputFormComponent(title, detail) {
 
     addFocusBlurListener(userInput);
 
-    // 添加标题栏和输入框到表单组件
+    // 添加标题栏、预览容器（如果存在）和输入框到表单组件
     formComponent.appendChild(formHeader);
+    if (previewContainer) formComponent.appendChild(previewContainer);
     formComponent.appendChild(userInput);
 
     // 添加到用户输入表单容器
@@ -722,9 +798,10 @@ function createUserInputFormComponent(title, detail) {
 
     // 实时更新标题
     userInput.addEventListener('input', () => {
-        formTitle.textContent = userInput.value || userInput.placeholder;
+        formTitle.textContent = inputField.value || inputField.placeholder;
     });
 }
+
 
 
 // 通用的焦点和失焦处理函数
@@ -982,7 +1059,7 @@ nodeSelect.addEventListener('change', (event) => {
         dynamicContainer.appendChild(nodeComponent);
 
         // 动态生成用户输入表单中的同步组件
-        createUserInputFormComponent(selectedNode.name,selectedNode.detail);
+        createUserInputFormComponent(selectedNode.name,selectedNode.detail,inputField);
 
         // 隐藏提示文本
         svgContains.style.display = 'none';
