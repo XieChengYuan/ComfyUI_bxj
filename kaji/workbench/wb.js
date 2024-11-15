@@ -1,6 +1,6 @@
 /*咔叽工作台UI内容都放这一个文件里，后面发布时会对这个文件做代码混淆，由于这样会导致文件过长，为方便后期维护用regin/endregin对逻辑分块，可折叠*/
 import { api } from '../../../scripts/api.js'
-
+import { app } from '../../../scripts/app.js'
 // #region UI组件及样式
 
 // #region svg代码统一存放
@@ -531,6 +531,7 @@ async function getObjectInfo() {
     const res = await request("/plugin/objectInfo", null, 'GET');
     if (res) {
         console.log('请求 Comfyui 获取的object_info: ', res);
+        return res;
     } else {
         console.error('请求 Comfyui object_info信息失败: ', res);
     }
@@ -751,17 +752,78 @@ panelsContainer.className = 'panels-container';
 // #endregion 工作台主按钮及主容器
 
 // #region 创建作品参数面板
-//TODO：获取当前工作流可作为输入的节点
-// 创建作品参数模块容器
+//---------------------------------------数据处理-----------------------------------------------
+//获取当前工作流output信息
+const graphPrompt = await app.graphToPrompt();
+const output = graphPrompt.output; 
+//格式化，当过滤数据用，这些项在可选节点中显示
+function restructureData(inputData) {
+    const result = new Map();
 
-//获取系统节点信息
-const objectInfo = getObjectInfo();
-const nodes = [
-    { id: 'node1', name: '节点1', description: '这是节点1的描述' },
-    { id: 'node2', name: '节点2', description: '这是节点2的描述' },
-    { id: 'node3', name: '节点3', description: '这是节点3的描述' }
-];
+    for (let key in inputData) {
+        const node = inputData[key];
+        const classType = node.class_type;
+        const inputs = node.inputs;
+        // 创建一个 class_type 的条目，如果不存在则初始化为一个空对象
+        if (!result.has(classType)) {
+            result.set(classType, {});
+        }
+        for (let inputKey in inputs) {
+            const inputValue = inputs[inputKey];
 
+            // 只记录不是数组的项，包含数组的项是link数据
+            if (!Array.isArray(inputValue)) {
+                result.get(classType)[inputKey] = inputValue;
+            }
+        }
+    }
+
+    return result;
+}
+const fliterData = restructureData(output)
+console.log("节点过滤数据：",fliterData)
+//获取系统中所有节点对应参数，供表单使用，上面工作流信息只包含当前已选参数，手动过滤
+const allObjectInfo = await getObjectInfo()
+//重构数据对应表单输入,只考虑可交互数据，link数据不考虑（这里将input内包含二项数组的视为连接数据）
+function filterObjectInfo(allObjectInfo, filterData) {
+    const nodes = [];
+
+    // 遍历所有的 filterData 中的 class_type
+    console.log("filterData", filterData);
+    filterData.forEach((requiredFields, classType) => {
+        // 检查 allObjectInfo 中是否包含该 classType
+        if (allObjectInfo[classType] && allObjectInfo[classType].input) {
+            const requiredInputs = allObjectInfo[classType].input.required || {};
+            const optionalInputs = allObjectInfo[classType].input.optional || {};
+
+            // 合并 required 和 optional inputs
+            const allInputs = { ...requiredInputs, ...optionalInputs };
+
+            // 遍历 requiredFields 中的 key
+            Object.keys(requiredFields).forEach((key) => {
+                // 检查 allInputs 中是否存在该 key
+                if (allInputs[key]) {
+                    // 获取详细信息
+                    const detailInfo = allInputs[key];
+                    const detail = Array.isArray(detailInfo) ? detailInfo : [detailInfo];
+
+                    nodes.push({
+                        id: `${classType}_${key}`, // 随便标识一下
+                        name: `${classType}:${key}`,
+                        detail: detail
+                    });
+                }
+            });
+        }
+    });
+
+    return nodes;
+}
+
+const nodes = filterObjectInfo(allObjectInfo,fliterData)
+console.log("获取可控制输入的节点",nodes)
+
+//----------------------------------------------------------------------------------------------
 // 创建作品参数模块容器
 const productInfo = document.createElement('div');
 productInfo.className = 'panel';
@@ -819,7 +881,7 @@ nodeSelect.addEventListener('change', (event) => {
         // 创建输入框并添加到nodeComponent
         const inputField = document.createElement('input');
         inputField.type = 'text';
-        inputField.placeholder = `请输入${selectedNode.name}`;
+        inputField.placeholder = `请输入${selectedNode.name}的提示标题`;
         inputField.style.width = '80%';
         inputField.style.padding = '10px';
         inputField.style.borderRadius = '6px';
