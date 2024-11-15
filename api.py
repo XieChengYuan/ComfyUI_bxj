@@ -900,26 +900,6 @@ async def get_remaining_from_comfyui():
                 )
                 return None
             
-#获取系统中所有组件及可用参数
-@server.PromptServer.instance.routes.get("/plugin/objectInfo")
-async def deleteProduct(req):
-    comfyui_address = get_comfyui_address()
-    url = f"{comfyui_address}/object_info"
-    logging.info(f"请求 ComfyUI 的当前系统的节点数据: {url}")
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                response_json = await response.json()
-                #logging.info(f"/object_info 接口出参: {response_json}")
-                return  web.json_response(response_json)
-            else:
-                error_text = await response.text()
-                logging.error(
-                    f"获取系统节点信息失败，状态码: {response.status}, 错误信息: {error_text}"
-                )
-                return None
-
-
 @DeprecationWarning
 async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
     comfyui_address = get_comfyui_address()

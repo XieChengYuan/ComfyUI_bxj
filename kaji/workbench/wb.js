@@ -1,6 +1,7 @@
 /*咔叽工作台UI内容都放这一个文件里，后面发布时会对这个文件做代码混淆，由于这样会导致文件过长，为方便后期维护用regin/endregin对逻辑分块，可折叠*/
 import { api } from '../../../scripts/api.js'
 import { app } from '../../../scripts/app.js'
+
 // #region UI组件及样式
 
 // #region svg代码统一存放
@@ -493,8 +494,28 @@ document.head.appendChild(style);
 // #region 前后端通信接口
 
 // 请求url
+//生成一个全局的客户端标识，客户端自己生图用，不用关心百分百的唯一性
+function generateClientId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
+const clientId = generateClientId();
+const hostname = window.location.hostname; // 获取主机名
+const port = window.location.port;         // 获取端口号
+const protocol = window.location.protocol; // 获取协议
+const baseUrl = port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`;
+const cfy_ws_url = `ws://${hostname}:${port}/ws?clientId=${clientId}`;
+
+console.log(`Hostname: ${hostname}`);
+console.log(`Port: ${port}`);
+console.log("baseUrl:", baseUrl);
+console.log("wss:", cfy_ws_url);
 const END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts";      //获取作品
-const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"              //上传作品
+const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"        //上传作品
 const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";    //删除作品
 
 //临时测试数据
@@ -514,38 +535,69 @@ const gctest = {
     }
 }
 
-//通用请求口
-async function request(url, data = null, method = 'POST') {
+// 通用请求函数
+async function request(endpoint, data = {}, method = 'POST', token = '') {
+    // 拼接完整的 URL
+    let url = `${baseUrl}${endpoint}`;
+
+    // 如果是 GET 或 HEAD 方法，将参数附加到查询字符串
+    if (method === 'GET' || method === 'HEAD') {
+        // 如果 token 存在，将其添加到 data
+        if (token) {
+            data.token = token;
+        }
+
+        const queryParams = new URLSearchParams(data).toString();
+        if (queryParams && queryParams !== 'null=') {
+            url += `?${queryParams}`;
+        }
+    }
+
+    // 设置请求选项
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            // 如果有 token，将其添加到请求头
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+    };
+    console.log("optionsoptionsoptionsoptions",options)
+    // 如果方法不是 GET 或 HEAD，添加 body
+    if (method !== 'GET' && method !== 'HEAD') {
+        // 如果 token 存在，将其添加到 data
+        if (token) {
+            data.token = token;
+        }
+        options.body = JSON.stringify(data);
+    }
+
     try {
-        const options = {
-            method,
-            headers: {
-                'Content-Type': 'application/json'
-            },
-        };
+        // 发送请求
+        const response = await fetch(url, options);
 
-        if (method === 'POST' || method === 'PUT') {
-            options.body = JSON.stringify({ data });
-        }
-
-        const response = await api.fetchApi(url, options);
-        console.log("请求响应数据：",response)
+        // 检查响应状态
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const resdata = await response.json();
-        return resdata;
+        // 解析响应 JSON
+        const resJson = await response.json();
+        console.log("Response JSON:", resJson);
 
+        // 返回解析后的数据
+        return resJson;
     } catch (error) {
-        console.error('Request failed:', error);
-        return null;
+        console.error("Request failed:", error);
+        throw error;
     }
 }
 
+
+
 //请求获取系统中所有节点信息及其可用参数
 async function getObjectInfo() {
-    const res = await request("/plugin/objectInfo", null, 'GET');
+    const res = await request("/object_info", null, 'GET');
     if (res) {
         console.log('请求 Comfyui 获取的object_info: ', res);
         return res;
@@ -566,7 +618,7 @@ async function getProduct(data) {
 
 //请求删除作品
 async function deleteProduct(data) {
-    const res = await request(END_POINT_URL_FOR_PRODUCT_2, data);
+    const res = await request(END_POINT_URL_FOR_PRODUCT_3, data);
     if (res?.data?._id) {
         console.log('请求删除作品 ', res.data);
     } else {
@@ -576,7 +628,7 @@ async function deleteProduct(data) {
 
 //请求发布作品
 async function uploadProduct(data) {
-    const res = await request(END_POITN_URL, data);
+    const res = await request(END_POINT_URL1, data);
     if (res?.data?._id) {
         console.log('请求发布作品 ', res.data);
     } else {
@@ -586,19 +638,24 @@ async function uploadProduct(data) {
 
 //请求建立websocket连接
 async function getWss() {
-    const res = await request("/plugin/wss", null, 'GET');
-    if (res?.data?._id) {
-        console.log('请求 Comfyui 建立wss连接: ', res.data);
+    const res = await request("/wss", null, 'GET');
+    if (res) {
+        console.log('请求 Comfyui 建立wss连接: ', res);
     } else {
         console.error('请求 Comfyui wss失败: ', res);
     }
 }
 
 //请求生图
-async function postPrompt() {
-    const res = await request("/plugin/prompt", null, 'GET');
-    if (res?.data?._id) {
-        console.log('请求 Comfyui 生图: ', res.data);
+async function postPrompt(output) {
+    let data = {
+        "client_id": clientId,
+        "prompt": output,
+        "workflow":workflow,
+    }
+    const res = await request("/prompt", data,'POST');
+    if (res) {
+        console.log('请求 Comfyui 生图: ', res);
     } else {
         console.error('请求 Comfyui 生图失败: ', res);
     }
@@ -606,13 +663,15 @@ async function postPrompt() {
 
 //预览生成结果
 async function getView() {
-    const res = await request("/plugin/view", null, 'GET');
+    const res = await request("/view", null, 'GET');
     if (res?.data?._id) {
         console.log('请求 Comfyui view: ', res.data);
     } else {
         console.error('请求 Comfyui view信息失败: ', res);
     }
 }
+
+
 
 // #endregion comfyui前后端通信接口
 
@@ -996,6 +1055,7 @@ panelsContainer.className = 'panels-container';
 //获取当前工作流output信息
 const graphPrompt = await app.graphToPrompt();
 const output = graphPrompt.output; 
+const workflow = graphPrompt.workflow; 
 //格式化，当过滤数据用，这些项在可选节点中显示
 function restructureData(inputData) {
     const result = new Map();
@@ -1166,7 +1226,7 @@ dropdownItems.forEach(item => {
             // 创建输入框并添加到nodeComponent
             const inputField = document.createElement('input');
             inputField.type = 'text';
-            inputField.placeholder = `请输入${selectedNode.name}的提示标题`;
+            inputField.placeholder = `此处是${selectedNode.name}的提示标题`;
             inputField.style.width = '80%';
             inputField.style.padding = '10px';
             inputField.style.borderRadius = '6px';
@@ -1269,10 +1329,22 @@ userInput.style.position = 'relative';
 userInput.innerHTML = `
     <h3>用户输入表单</h3>
     <p>此处模拟用户输入</p>
-    <button class="panel-button glow-button">作品生成测试</button>
+    <button class="panel-button glow-button" id="generate-test-button">作品生成测试</button>
 `;
 const userTips = userInput.querySelector('h3');
 userTips.appendChild(createTooltip('可以模拟用户输入，并测试生成'));
+
+// 调用生图接口
+const generateTestButton = userInput.querySelector('#generate-test-button');
+generateTestButton.addEventListener('click', async () => {
+    try {
+        const result = await postPrompt(output);
+        console.log("生成结果:", result);
+        // 可以在这里处理生成的结果，例如将其显示在预览区域
+    } catch (error) {
+        console.error("生成失败:", error);
+    }
+});
 
 const mockUser = document.createElement('div');
 mockUser.className = 'panel';
