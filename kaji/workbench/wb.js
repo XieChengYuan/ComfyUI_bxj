@@ -508,89 +508,84 @@ const hostname = window.location.hostname; // 获取主机名
 const port = window.location.port;         // 获取端口号
 const protocol = window.location.protocol; // 获取协议
 const baseUrl = port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`;
-const cfy_ws_url = `ws://${hostname}:${port}/ws?clientId=${clientId}`;
+const wsBaseUrl = port ? `ws://${hostname}:${port}` : `ws://${hostname}`;
+
 
 console.log(`Hostname: ${hostname}`);
 console.log(`Port: ${port}`);
 console.log("baseUrl:", baseUrl);
-console.log("wss:", cfy_ws_url);
+
 const END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts";      //获取作品
 const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"        //上传作品
 const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";    //删除作品
 
 //临时测试数据
 const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
-const gctest = {
-    type: 'generate_submit',
-    data: {
-        sub_type: "plugin",
-        medias: [{
-            "url_temp": "https://env-00jxh693vso2.normal.cloudstatic.cn/1730723029103.jpg?expire_at=1730723630&er_sign=6d24ee45e1ec23df910f710fad3b2002",
-            "index": "10"
-        }],
-        texts: [{
-            "input_des": "测试",
-            "index": "16"
-        }]
-    }
-}
 
-// 通用请求函数
+// 动态处理 HTTP 和 WebSocket 请求
 async function request(endpoint, data = {}, method = 'POST', token = '') {
-    // 拼接完整的 URL
-    let url = `${baseUrl}${endpoint}`;
+    // WebSocket 请求特殊处理
+    if (endpoint === '/ws') {
+        return connectWebSocket(endpoint, data);
+    }
 
-    // 如果是 GET 或 HEAD 方法，将参数附加到查询字符串
+    // 处理普通 HTTP 请求
+    let url = `${baseUrl}${endpoint}`;
     if (method === 'GET' || method === 'HEAD') {
-        // 如果 token 存在，将其添加到 data
         if (token) {
             data.token = token;
         }
-
         const queryParams = new URLSearchParams(data).toString();
-        if (queryParams && queryParams !== 'null=') {
+        if (queryParams) {
             url += `?${queryParams}`;
         }
     }
 
-    // 设置请求选项
     const options = {
         method,
         headers: {
             'Content-Type': 'application/json',
-            // 如果有 token，将其添加到请求头
-            ...(token && { 'Authorization': `Bearer ${token}` }),
+            ...(token && { Authorization: `Bearer ${token}` }),
         },
+        ...(method !== 'GET' && method !== 'HEAD' && { body: JSON.stringify(data) }),
     };
-    console.log("optionsoptionsoptionsoptions",options)
-    // 如果方法不是 GET 或 HEAD，添加 body
-    if (method !== 'GET' && method !== 'HEAD') {
-        // 如果 token 存在，将其添加到 data
-        if (token) {
-            data.token = token;
-        }
-        options.body = JSON.stringify(data);
-    }
 
     try {
-        // 发送请求
         const response = await fetch(url, options);
-
-        // 检查响应状态
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
-
-        // 解析响应 JSON
-        const resJson = await response.json();
-        console.log("Response JSON:", resJson);
-
-        // 返回解析后的数据
-        return resJson;
+        return await response.json();
     } catch (error) {
         console.error("Request failed:", error);
         throw error;
     }
+}
+
+// WebSocket
+function connectWebSocket(endpoint, data) {
+    const wsUrl = `${wsBaseUrl}${endpoint}?${new URLSearchParams(data).toString()}`;
+    console.log("Connecting to WebSocket:", wsUrl);
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+        console.log("WebSocket message received:", event.data);
+    };
+
+    ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+    };
+
+    ws.onclose = (event) => {
+        console.warn(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+    };
+
+    return ws; 
 }
 
 
@@ -638,13 +633,50 @@ async function uploadProduct(data) {
 
 //请求建立websocket连接
 async function getWss() {
-    const res = await request("/wss", null, 'GET');
-    if (res) {
-        console.log('请求 Comfyui 建立wss连接: ', res);
-    } else {
-        console.error('请求 Comfyui wss失败: ', res);
+    try {
+        let data = {
+            "clientId": clientId
+        }
+        const res = await request("/ws", data, 'GET'); // 请求 WebSocket 连接信息
+        if (!res?.url) {
+            console.error("WebSocket URL 未获取到:", res);
+            return;
+        }
+
+        // 创建 WebSocket 实例
+        const ws = new WebSocket(res.url);
+
+        // 监听 WebSocket 事件
+        ws.onopen = () => {
+            console.log("WebSocket 连接成功");
+        };
+
+        ws.onmessage = (event) => {
+            console.log("收到 WebSocket 消息:", event.data);
+
+            // 如果消息是 JSON 格式，解析后处理
+            try {
+                const message = JSON.parse(event.data);
+                console.log("解析的消息内容:", message);
+            } catch (error) {
+                console.warn("收到非 JSON 格式消息:", event.data);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket 错误:", error);
+        };
+
+        ws.onclose = (event) => {
+            console.warn(`WebSocket 连接关闭: code=${event.code}, reason=${event.reason}`);
+        };
+
+        return ws; // 返回 WebSocket 实例以便后续使用
+    } catch (error) {
+        console.error("建立 WebSocket 连接失败:", error);
     }
 }
+const ws = await getWss();
 
 //请求生图
 async function postPrompt(output) {
