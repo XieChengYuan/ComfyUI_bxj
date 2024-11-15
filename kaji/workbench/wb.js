@@ -635,7 +635,7 @@ function createTooltip(text) {
 }
 
 
-function createUserInputFormComponent(title, inputField) {
+function createUserInputFormComponent(title, detail) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
 
     // 创建新的表单组件
@@ -656,30 +656,49 @@ function createUserInputFormComponent(title, inputField) {
     const formHeader = document.createElement('div');
     formHeader.style.display = 'flex';
     formHeader.style.justifyContent = 'flex-start';
-    formHeader.style.alignItems = 'center'; 
+    formHeader.style.alignItems = 'center';
 
     // 创建 SVG 图标容器
     const svgContainer = document.createElement('div');
-    svgContainer.innerHTML = `${titleSvgCode}`;  // 这里插入SVG代码
-    svgContainer.style.marginRight = '-5px';  // 设置图标和标题之间的间距
+    svgContainer.innerHTML = `${titleSvgCode}`; 
+    svgContainer.style.marginRight = '-5px';  
 
     // 创建标题
     const formTitle = document.createElement('p');
-    formTitle.textContent = inputField.value || inputField.placeholder;
+    formTitle.textContent = title;
     formTitle.style.fontWeight = '500';
     formTitle.style.fontSize = '1.0rem';
-    formTitle.style.color = '#dcdcdc';  
+    formTitle.style.color = '#dcdcdc';
     formTitle.style.margin = '0';
-    formTitle.style.paddingBottom = '7px'
+    formTitle.style.paddingBottom = '7px';
 
     // 添加SVG图标和标题到标题栏
     formHeader.appendChild(svgContainer);
     formHeader.appendChild(formTitle);
 
-    // 输入框
-    const userInput = document.createElement('input');
-    userInput.type = 'text';
-    userInput.value = '';
+    // 根据 detail 创建不同类型的输入框
+    let userInput;
+    const [inputType, inputParams] = detail;
+
+    if (inputType === 'INT' || inputType === 'FLOAT') {
+        userInput = document.createElement('input');
+        userInput.type = 'number';
+        userInput.value = inputParams.default || '';
+        userInput.min = inputParams.min !== undefined ? inputParams.min : '';
+        userInput.max = inputParams.max !== undefined ? inputParams.max : '';
+        userInput.step = inputType === 'FLOAT' ? '0.01' : '1';
+    } else if (inputType === 'STRING') {
+        userInput = document.createElement('input');
+        userInput.type = 'text';
+        userInput.value = inputParams.default || '';
+    } else {
+        // 默认类型为文本输入框
+        userInput = document.createElement('input');
+        userInput.type = 'text';
+        userInput.value = '';
+    }
+
+    // 设置输入框样式
     userInput.style.width = '90%';
     userInput.style.padding = '10px';
     userInput.style.borderRadius = '6px';
@@ -702,10 +721,11 @@ function createUserInputFormComponent(title, inputField) {
     userInputFormContainer.appendChild(formComponent);
 
     // 实时更新标题
-    inputField.addEventListener('input', () => {
-        formTitle.textContent = inputField.value || inputField.placeholder;
+    userInput.addEventListener('input', () => {
+        formTitle.textContent = userInput.value || userInput.placeholder;
     });
 }
+
 
 // 通用的焦点和失焦处理函数
 function addFocusBlurListener(inputElement) {
@@ -962,7 +982,7 @@ nodeSelect.addEventListener('change', (event) => {
         dynamicContainer.appendChild(nodeComponent);
 
         // 动态生成用户输入表单中的同步组件
-        createUserInputFormComponent(selectedNode.name, inputField);
+        createUserInputFormComponent(selectedNode.name,selectedNode.detail);
 
         // 隐藏提示文本
         svgContains.style.display = 'none';
