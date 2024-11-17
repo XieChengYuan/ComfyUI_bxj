@@ -24,6 +24,10 @@ import random
 import requests
 import mimetypes
 import math
+import platform
+import subprocess
+import aiohttp_cors
+from aiohttp import web
 
 
 # 在文件开头设置日志配置
@@ -56,7 +60,6 @@ MAX_RECONNECT_ATTEMPTS = 10
 HEART_INTERVAL = 30
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
-
 
 def download_media(url, save_dir):
     try:
@@ -132,12 +135,64 @@ def get_port_from_cmd(default_port=8188):
 
     return port if port else default_port
 
+def get_machine_unique_id():
+    #获取机器唯一标识符（跨平台适配）
+    try:
+        system = platform.system()
 
-def generate_unique_hash(mac_address, port):
-    uid = f"{mac_address}:{port}"
-    # logging.info(f"mac_address:port =》 {uid}")
-    hashValue = hashlib.sha256(uid.encode())
-    return hashValue.hexdigest()
+        if system == "Linux":
+            # 优先尝试从 /etc/machine-id 获取
+            if os.path.exists("/etc/machine-id"):
+                with open("/etc/machine-id", "r") as f:
+                    return f.read().strip()
+
+            # 如果 /etc/machine-id 不存在，尝试 dmidecode
+            try:
+                result = subprocess.check_output(
+                    ["dmidecode", "-s", "system-uuid"], stderr=subprocess.DEVNULL
+                )
+                return result.decode().strip()
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+
+            # 如果 dmidecode 不可用，尝试从 /proc/cpuinfo 获取 CPU 信息
+            try:
+                with open("/proc/cpuinfo", "r") as f:
+                    cpuinfo = f.read()
+                    for line in cpuinfo.split("\n"):
+                        if line.startswith("Serial"):
+                            return line.split(":")[1].strip()
+            except FileNotFoundError:
+                pass
+
+            # 最后尝试生成基于网络接口的 UUID
+            mac_address = uuid.getnode()
+            return uuid.UUID(int=mac_address).hex
+
+        elif system == "Darwin":  # macOS
+            result = subprocess.check_output(
+                ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"]
+            )
+            for line in result.decode().split("\n"):
+                if "IOPlatformUUID" in line:
+                    return line.split('"')[-2]
+            raise ValueError("IOPlatformUUID not found")
+
+        elif system == "Windows":  # Windows
+            result = subprocess.check_output(["wmic", "csproduct", "get", "UUID"])
+            return result.decode().split("\n")[1].strip()
+
+        else:
+            raise ValueError("Unsupported platform")
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to retrieve machine ID: {e}")
+
+def generate_unique_hash():
+    # 考虑到端口动态性和mac地址如果在虚拟机中更改mac，或者更换网卡也会受影响，使用机器唯一标识符生成稳定的哈希值
+    machine_id = get_machine_unique_id()
+    hash_value = hashlib.sha256(machine_id.encode()).hexdigest()
+    return hash_value
 
 
 args = parse_args()
@@ -146,7 +201,7 @@ cfy_ws_url = "ws://{}:{}/ws?clientId={}".format(
     get_address_from_args(args), parse_port_from_args(args), cur_client_id
 )
 
-uni_hash = generate_unique_hash(get_mac_address(), get_port_from_cmd())
+uni_hash = generate_unique_hash()
 print(f"每次启动都是相同的机器码，uni_hash：{uni_hash}")
 
 
@@ -351,39 +406,29 @@ def getInputTypeArr(data):
 
 
 def reformat(uploadData):
-    image_base = uploadData.get("imageBase")
-    if not image_base:
-        raise ValueError("uploadData 中缺少 imageBase 键")
-    proj_root = get_comfy_root()
-    image_path = os.path.join(proj_root, "input", image_base)
-    if is_image_file(image_path):
-        with open(image_path, "rb") as img_file:
-            image_content = img_file.read()
+    # 从数据中提取必要字段
+    uniqueid = uploadData.get("uniqueid")
+    workflow = uploadData.get("workflow")
+    output = uploadData.get("output")
 
-        # uploadData["imageBase"] = base64.b64encode(image_content).decode("utf-8")
-        # print("imageBase 已成功替换为文件内容")
+    if not uniqueid or not workflow or not output:
+        raise ValueError("缺少必要字段：uniqueid, workflow 或 output")
 
-        # 所有待上传的图片或视频，单独上传，并获取fileId+url；暂时这里只有一张，后续可能会有多张图片和视频
-        # 改为七牛云-扩展存储后。直接下载七牛云的 SDK 来上传到 OSS
-        # 客户端上传文件到云函数、云函数再上传文件到云存储，这样的过程会导致文件流量带宽耗费较大。所以一般上传文件都是客户端直传。（且云函数的请求体大小限制2M）
+    images = uploadData.get("images", [])
+    # 替换上传数据中的 media_urls
+    uploadData["media_urls"] = images
 
-        media_urls = [
-            {
-                "type": "images",
-                "url": "cloud://env-00jxh693vso2/1731033595419.jpeg",
-                "url_temp": "https://env-00jxh693vso2.normal.cloudstatic.cn/1731033595419.jpeg?expire_at=1731034196&er_sign=3f6fb944df7fd893e4a9c147e2c1b389",
-            }
-        ]
-        uploadData["media_urls"] = media_urls
+    # 添加额外数据
+    uploadData["uni_hash"] = uni_hash  # 根据 uniqueid 生成唯一哈希
+    uploadData["inputTypeArr"] = getInputTypeArr(output)
 
-        uploadData["uni_hash"] = uni_hash
-        uploadData["inputTypeArr"] = getInputTypeArr(uploadData.get("output"))
-        uploadData.pop("output", None)
-        uploadData.pop("workflow", None)
-    else:
-        raise FileNotFoundError(f"图片文件不存在或无效: {image_path}")
+    # 移除工作流不上传
+    uploadData.pop("output", None)
+    uploadData.pop("workflow", None)
 
     return uploadData
+
+
 
 
 # 插件端与服务器端的心跳。理论上，初始化一次，任务变动（新增+1、完成-1）时触发一次。就可以。 其余时刻发送（数据都是重复）是多余的（网络探活不靠这个）
@@ -691,7 +736,7 @@ async def get_wss_server_url():
                 )
 
 
-token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE4NDY5MDAsImV4cCI6MTczMTg1NDEwMH0.yw_JO5w3RqvLFzYV96AjoaZnWs_nL9gQPvpQYeFO5Gk"
 
 
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
@@ -723,82 +768,189 @@ async def deleteProduct(req):
             print("res_js", res_js)
 
             return web.json_response(res_js)
-            
+        
+#前端直传有跨域问题，暂时不知道咋解决，先传给python端。
+#前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
+@server.PromptServer.instance.routes.post(END_POINT_URL3)
+async def uploadFile(req):
+    try:
+        # 提取 multipart 数据
+        reader = await req.multipart()
+
+        # 读取文件数据
+        field = await reader.next()
+        if not field or field.name != "file":
+            return web.Response(status=400, text="Missing file field")
+
+        # 使用时间戳生成文件名
+        timestamp = int(time.time())
+        original_filename = field.filename or "uploaded_image.png"
+        filename = f"{timestamp}_{original_filename}"
+
+        # 暂存到 input 文件夹
+        os.makedirs(media_save_dir, exist_ok=True)  # 确保目录存在
+        temp_path = os.path.join(media_save_dir, filename)
+
+        # 读取传输的数据
+        base64_data = b""
+        while True:
+            chunk = await field.read_chunk()
+            if not chunk:
+                break
+            base64_data += chunk
+
+        # 检查数据是否为 Base64 格式
+        base64_data_str = base64_data.decode("utf-8")
+        if base64_data_str.startswith("data:image"):
+            # 去掉 Base64 前缀（如 `data:image/png;base64,`）
+            base64_data_str = base64_data_str.split(",")[1]
+
+        try:
+            # 解码 Base64 数据为二进制
+            binary_data = base64.b64decode(base64_data_str)
+        except Exception as e:
+            return web.Response(status=400, text=f"Invalid Base64 data: {str(e)}")
+
+        # 保存解码后的二进制文件到本地
+        with open(temp_path, "wb") as f:
+            f.write(binary_data)
+
+        print(f"文件已成功保存到本地: {temp_path}")
+
+        # 验证文件是否为有效图片（可选）
+        if not temp_path.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')):
+            return web.Response(status=400, text="Unsupported file type")
+
+        # 上传到远程存储服务
+        async with aiohttp.ClientSession() as session:
+            upload_url = f"{BASE_URL}{END_POINT_URL3}"  # 替换为实际上传接口
+            payload = {
+                "imageBase": base64_data_str,  # 传递原始的 Base64 数据
+                "filename": filename
+            }
+            headers = {"Authorization": f"Bearer {token}"}
+
+            async with session.post(upload_url, json=payload, headers=headers) as response:
+                if response.status == 200:
+                    res_js = await response.json()
+                    uploaded_url = res_js.get("data", {}).get("tempUrl")
+                    fileID = res_js.get("data", {}).get("fileID")
+
+                    if uploaded_url:
+                        # 返回格式化的响应
+                        return web.json_response({
+                            "type": "images",
+                            "url": fileID,
+                            "url_temp": uploaded_url
+                        })
+                    else:
+                        return web.Response(status=500, text="Failed to retrieve uploaded URL")
+                else:
+                    error_text = await response.text()
+                    return web.Response(status=response.status, text=f"Upload failed: {error_text}")
+
+    except Exception as e:
+        print(f"错误: {str(e)}")
+        return web.Response(status=500, text=f"Internal server error: {str(e)}")
+
 
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
 async def kaji_r(req):
-    jsonData = await req.json()
-    async with aiohttp.ClientSession() as session:
-        oldData = jsonData.get("uploadData")
-        if oldData:
-            uniqueid = oldData.get("uniqueid")  # 从上传数据中提取uniqueid
-            if uniqueid:
-                # 本地保存工作流数据
-                workflow = oldData.get("workflow")
-                output = oldData.get("output")
-                save_workflow(uniqueid, {"workflow": workflow, "output": output})
+    try:
+        # 获取请求体中的 JSON 数据
+        jsonData = await req.json()
+        logging.info(f"收到的请求数据: {jsonData}")
 
-                newData = reformat(oldData)
+        # 提取字段
+        uniqueid = jsonData.get("uniqueid")  # 从数据中直接提取 uniqueid
+        workflow = jsonData.get("workflow")
+        output = jsonData.get("output")
 
-                # 有 id 说明是更新作品
-                # newData["product_id"] = "672b821f31c9b7c2eecb13dd"
-                newData["token"] = token
-                logging.info(f"作品上传接口入参:{newData}")
+        # 检查是否缺少必要字段
+        if not uniqueid:
+            logging.error("请求中缺少 uniqueid 字段")
+            return web.Response(status=400, text="uniqueid is missing")
+        if not workflow or not output:
+            logging.error("请求中缺少 workflow 或 output 字段")
+            return web.Response(status=400, text="workflow or output is missing")
 
-            async with session.post(
-                BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=newData
-            ) as response:
+        # 本地保存工作流数据
+        logging.info(f"正在保存工作流数据: uniqueid={uniqueid}")
+        save_workflow(uniqueid, {"workflow": workflow, "output": output})
+
+        # 重新格式化数据
+        newData = reformat(jsonData)
+        # 添加 token
+        newData["token"] = token
+        #logging.info(f"作品上传接口入参: {newData}")
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=newData) as response:
                 try:
+                    # 解析响应数据
                     res = await response.text()
+                    logging.info(f"收到的响应文本: {res}")
                     res_js = json.loads(res)
-                    print("res_js", res_js)
 
+                    # 获取作品 ID
                     data = res_js.get("data", {})
                     PRODUCT_ID = data.get("_id", None)
                     if PRODUCT_ID is None:
+                        logging.error("未能从响应中获取 PRODUCT_ID")
                         raise ValueError("未能从响应中获取 PRODUCT_ID")
 
+                    # 检查审核状态
                     txt_audit_status = data.get("txt_audit_status", None)
                     if txt_audit_status != 1:
+                        logging.error("标题或描述审核未通过，涉嫌违规")
                         raise ValueError("标题或描述审核未通过，涉嫌违规")
 
                     image_audit_status = data.get("image_audit_status", None)
                     if image_audit_status != 1:
+                        logging.error("图片审核未通过，涉嫌违规")
                         raise ValueError("图片审核未通过，涉嫌违规")
 
-                    # 这里也要触发了那个ping事件，机器内新增了一个工作流啦
-
-                    # thread_exe()
+                    # 成功处理
+                    logging.info("作品上传成功")
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
+                    logging.error("无法解析 JSON 响应")
                     return web.Response(
-                        status=response.status, text="uniqueid is missing"
+                        status=response.status, text="Failed to parse JSON response"
                     )
-        else:
-            return web.Response(status=400, text="uploadData is missing")
+                except ValueError as e:
+                    logging.error(f"值错误: {e}")
+                    return web.Response(status=400, text=str(e))
+    except Exception as e:
+        logging.error(f"处理请求时出错: {e}")
+        return web.Response(status=500, text="Internal Server Error")
+
 
 
 def save_workflow(uniqueid, data):
-    base_path = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/"
+    base_path = os.path.join(find_project_root(), "custom_nodes/ComfyUI_Bxj/config/json/")
 
-    # 保存workflow
+    # 检查并创建主目录
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+
+    # 保存 workflow 数据
     workflow_path = os.path.join(base_path, "workflow")
     if not os.path.exists(workflow_path):
         os.makedirs(workflow_path)
     workflow_file = os.path.join(workflow_path, f"{uniqueid}.json")
-    with open(workflow_file, "w") as f:
-        json.dump(data["workflow"], f, indent=4)
+    with open(workflow_file, "w", encoding="utf-8") as f:
+        json.dump(data.get("workflow", {}), f, indent=4, ensure_ascii=False)
 
-    # 保存output
+    # 保存 output 数据
     output_path = os.path.join(base_path, "output")
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     output_file = os.path.join(output_path, f"{uniqueid}.json")
-    with open(output_file, "w") as f:
-        json.dump(data["output"], f, indent=4)
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(data.get("output", {}), f, indent=4, ensure_ascii=False)
 
     print(f"工作流数据已保存: \nWorkflow: {workflow_file}\nOutput: {output_file}")
-
 
 def thread_exe():
     global is_connection

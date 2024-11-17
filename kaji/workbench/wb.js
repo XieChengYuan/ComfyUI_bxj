@@ -520,8 +520,7 @@ const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"        //上传作品
 const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";    //删除作品
 
 //临时测试数据
-const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmM5ODE4NzlkOWY5MTVhZDI2ODY4MGEiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE1Nzc5MjMsImV4cCI6MTczMTU4NTEyM30.guLmnRXA77B0yVAlpMU9dvg6wb61c1ch6zW1VYoI1aQ"
-
+const TEST_UID = "66c981879d9f915ad268680a"
 // 动态处理 HTTP 和 WebSocket 请求
 async function request(endpoint, data = {}, method = 'POST', token = '') {
     // WebSocket 请求特殊处理
@@ -549,7 +548,7 @@ async function request(endpoint, data = {}, method = 'POST', token = '') {
         },
         ...(method !== 'GET' && method !== 'HEAD' && { body: JSON.stringify(data) }),
     };
-
+    console.log("请求url和options: ", url, options);
     try {
         const response = await fetch(url, options);
         if (!response.ok) {
@@ -630,7 +629,8 @@ async function deleteProduct(data) {
 //请求发布作品
 async function uploadProduct(data) {
     const res = await request(END_POINT_URL1, data);
-    if (res?.data?._id) {
+    if (res) {
+        return res;
         console.log('请求发布作品 ', res.data);
     } else {
         console.error('请求发布作品失败: ', res);
@@ -707,10 +707,128 @@ async function getView(data) {
 }
 
 
+//前端直传。MD有跨域问题，暂时不知道咋搞跨域，先传到python端吧。
+//下面是直传的接口，等接了扩展存储，用下面的方法直传试一下。
+//采用文件流的方式传输，base64数据太大，请求不了
+async function uploadSingleImage(file) {
+    const endpoint = '/kaji-upload-file/uploadFile';
+    const formData = new FormData();
+    formData.append('file', file);
+
+    console.log('开始上传文件...');
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('文件上传成功，返回数据：', result);
+        return result;
+    } catch (error) {
+        console.error('文件上传失败:', error.message);
+        throw error;
+    }
+}
+
 
 // #endregion comfyui前后端通信接口
 
 // #region 公共组件/函数
+//UUID v4版全球每秒生成10的9次方个UUID，持续生成30亿年，碰撞的概率仍然接近0，远远小于2的122次方的的uuid的理论总数
+function generateUUIDv4() {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+
+    // 设置版本号（第6位）为 4
+    array[6] = (array[6] & 0x0f) | 0x40;
+
+    // 设置变体号（第8位的高两位）为 10
+    array[8] = (array[8] & 0x3f) | 0x80;
+
+    // 转换为 UUID 字符串
+    return [...array]
+        .map((b, i) =>
+            (b.toString(16).padStart(2, '0') + ((i === 3 || i === 5 || i === 7 || i === 9) ? '-' : ''))
+        )
+        .join('');
+}
+
+//通用loading框
+function showLoading(message = "加载中...") {
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '99999999';
+    overlay.id = 'loading-overlay';
+
+    // 创建加载框容器
+    const loadingContainer = document.createElement('div');
+    loadingContainer.style.backgroundColor = '#333';
+    loadingContainer.style.borderRadius = '8px';
+    loadingContainer.style.padding = '20px';
+    loadingContainer.style.width = '260px';
+    loadingContainer.style.boxShadow = '0px 4px 12px rgba(0, 0, 0, 0.5), 0px 0px 20px rgba(92, 184, 92, 0.2)';
+    loadingContainer.style.textAlign = 'center';
+    loadingContainer.style.color = '#dcdcdc';
+    loadingContainer.style.position = 'relative';
+
+    // 添加加载动画
+    const spinner = document.createElement('div');
+    spinner.style.border = '4px solid #444';
+    spinner.style.borderTop = '4px solid #5CB85C';
+    spinner.style.borderRadius = '50%';
+    spinner.style.width = '40px';
+    spinner.style.height = '40px';
+    spinner.style.margin = '0 auto 20px';
+    spinner.style.animation = 'spin 1s linear infinite';
+
+    // 添加加载文本
+    const loadingText = document.createElement('p');
+    loadingText.textContent = message;
+    loadingText.style.fontSize = '1rem';
+    loadingText.style.margin = '0';
+    loadingText.style.lineHeight = '1.4';
+
+    // 添加样式到页面
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // 组装加载框
+    loadingContainer.appendChild(spinner);
+    loadingContainer.appendChild(loadingText);
+    overlay.appendChild(loadingContainer);
+
+    // 将加载框添加到页面
+    document.body.appendChild(overlay);
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        document.body.removeChild(overlay);
+    }
+}
+
+//提示框
 function createTooltip(text) {
     const tooltipContainer = document.createElement('span');
     tooltipContainer.className = 'tooltip-container';
@@ -1912,12 +2030,21 @@ promotionToggle.addEventListener('change', () => {
     }
 });
 
-// TODO：获取数据并发送给服务器
-function getFormData() {
+// 获取用户输入数据函数
+function getUserInputData() {
     return {
-        title: document.getElementById('title-input').value,
-        description: document.getElementById('description-input').value,
-        promotionEnabled: promotionEnabled,  // 获取推广分成的状态
+        // 获取头图数据（多张）
+        headerImages: selectedImages,
+        // 获取标题
+        title: document.getElementById('title-input').value.trim(),
+        // 获取描述
+        description: document.getElementById('description-input').value.trim(),
+        // 获取价格
+        price: parseFloat(document.getElementById('price-input').value) || 0,
+        // 获取免费次数
+        freeTimes: parseInt(document.getElementById('free-input').value) || 0,
+        // 获取推广状态
+        promotionEnabled: promotionToggle.checked
     };
 }
 
@@ -1993,7 +2120,7 @@ const carouselControls = headerImageSection.querySelector('#carousel-controls');
 const carouselControls2 = previewSection.querySelector('#carousel-controls');
 
 // 数组用于存储选择的图片
-let selectedImages = [];
+let selectedImages = []; 
 let currentIndex = 0;
 
 // 更新预览区的文本提示状态
@@ -2104,7 +2231,6 @@ const updateCarouselControls = () => {
 };
 // 给未选择图片的“+”号区域添加悬停效果
 addImageArea.addEventListener('mouseenter', () => {
-    console.log("wwwwwww")
     if (selectedImages.length === 0) {
         addImageArea.style.boxShadow = '0px 6px 12px rgba(92, 184, 92, 0.5)';
         addImageArea.style.transform = 'scale(1.05)';
@@ -2301,6 +2427,7 @@ pluginUI.appendChild(footer);
 // #region 功能逻辑
 // 显示/隐藏插件 UI 界面
 workbenchButton.addEventListener('click', () => {
+    isExecutedComplete = true;
     overlay.style.display = 'block';
     pluginUI.classList.add('show');
 });
@@ -2400,7 +2527,7 @@ document.getElementById('cancel-button').addEventListener('click', () => {
 document.getElementById('next-button').addEventListener('click', () => {
     if (!isExecutedComplete) {
         // 弹出确认对话框
-        confirmDialog('请先完成测试，再执行下一步', null, true);
+        confirmDialog('请先完成作品生成测试', null, true);
 
     } else {
         // 如果已完成生成，直接执行后续逻辑
@@ -2412,6 +2539,79 @@ document.getElementById('next-button').addEventListener('click', () => {
 document.getElementById('prev-button').addEventListener('click', () => {
     appParamsTab.click();
 });
+
+//发布作品
+document.getElementById('publish-button').addEventListener('click', async () => {
+    try {
+        // 显示加载框
+        showLoading('正在上传作品，请稍候...');
+
+        // 获取用户输入数据
+        const userInputData = getUserInputData();
+
+        // 上传所有图片，获取公网地址
+        const mediaUrls = await Promise.all(
+            selectedImages.map(async (base64Image, index) => {
+                try {
+                    console.log(`正在上传第 ${index + 1} 张图片...`);
+    
+                    // 上传单张图片，直接接收返回的格式化对象
+                    const result = await uploadSingleImage(base64Image);
+    
+                    console.log(`第 ${index + 1} 张图片上传成功，返回数据：`, result);
+    
+                    // 直接返回后端格式化的对象
+                    return result;
+                } catch (error) {
+                    console.error(`第 ${index + 1} 张图片上传失败:`, error);
+                    throw new Error(`图片上传失败，请稍后重试`);
+                }
+            })
+        );
+        
+        // 上传完成后打印结果
+        console.log("所有图片上传完成，媒体 URL 数据：", mediaUrls);
+
+        // 构造上传数据
+        const uploadData = {
+            title: userInputData['title'] || '', // 从用户输入中获取标题
+            description: userInputData['description'] || '', // 获取描述
+            price: userInputData['price'] || 0, // 获取价格，默认为0
+            freeTimes: userInputData['freeTimes'] || 0, // 获取免费次数，默认为0
+            promotionEnabled: userInputData['promotionEnabled'] || false, // 获取推广状态
+            images: mediaUrls, // 传入选中的头图地址
+            uniqueid: generateUUIDv4(), // 生成唯一标识，保证全球唯一
+            workflow: workflow,
+            output: output,
+        };
+
+        console.log('准备上传的作品数据: ', uploadData);
+
+        // 调用上传接口
+        const response = await uploadProduct(uploadData);
+
+        // 处理上传结果
+        if (response && response.success) {
+            console.log('作品发布成功:', response.data);
+            hideLoading(); // 隐藏加载框
+            confirmDialog('作品发布成功！', () => {
+                pluginUI.classList.remove('show'); // 关闭插件界面
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 300);
+            });
+        } else {
+            console.error('作品发布失败:', response);
+            hideLoading(); // 隐藏加载框
+            confirmDialog('作品发布失败，请稍后重试。', null, true); // 错误时只显示关闭按钮
+        }
+    } catch (error) {
+        console.error('发布作品过程中出错:', error);
+        hideLoading(); // 隐藏加载框
+        confirmDialog('发布作品时发生错误，请检查网络或稍后重试。', null, true);
+    }
+});
+
 
 // 按钮拖动功能
 let isDragging = false;
