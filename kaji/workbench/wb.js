@@ -744,8 +744,9 @@ function createTooltip(text) {
 
     return tooltipContainer;
 }
-//通用的dialog对话框
-function confirmDialog(message, onConfirm) {
+
+//通用的dialog对话框。支持单按钮和双按钮
+function confirmDialog(message, onConfirm, singleButton = false) {
     // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';
@@ -764,7 +765,7 @@ function confirmDialog(message, onConfirm) {
     dialog.style.backgroundColor = '#333';
     dialog.style.borderRadius = '8px';
     dialog.style.padding = '20px';
-    dialog.style.width = '300px';
+    dialog.style.width = '320px';
     dialog.style.boxShadow = '0px 4px 12px rgba(0, 0, 0, 0.5), 0px 0px 20px rgba(92, 184, 92, 0.2)';
     dialog.style.textAlign = 'center';
     dialog.style.color = '#dcdcdc';
@@ -780,14 +781,14 @@ function confirmDialog(message, onConfirm) {
     // 创建按钮容器
     const buttonContainer = document.createElement('div');
     buttonContainer.style.display = 'flex';
-    buttonContainer.style.justifyContent = 'space-between';
+    buttonContainer.style.justifyContent = singleButton ? 'center' : 'space-between';
     buttonContainer.style.marginTop = '20px';
+    buttonContainer.style.gap = '10px';
 
     // 确认按钮
     const confirmButton = document.createElement('button');
-    confirmButton.textContent = '确认';
-    confirmButton.style.flexGrow = '1';
-    confirmButton.style.marginRight = '10px';
+    confirmButton.textContent = singleButton ? '关闭' : '确认';
+    confirmButton.style.width = '48%'; // 设置宽度和双按钮一致
     confirmButton.style.padding = '10px 0';
     confirmButton.style.backgroundColor = '#5CB85C';
     confirmButton.style.color = '#fff';
@@ -805,24 +806,32 @@ function confirmDialog(message, onConfirm) {
     });
 
     // 取消按钮
-    const cancelButton = document.createElement('button');
-    cancelButton.textContent = '取消';
-    cancelButton.style.flexGrow = '1';
-    cancelButton.style.padding = '10px 0';
-    cancelButton.style.backgroundColor = '#444';
-    cancelButton.style.color = '#fff';
-    cancelButton.style.border = 'none';
-    cancelButton.style.borderRadius = '5px';
-    cancelButton.style.cursor = 'pointer';
-    cancelButton.style.fontWeight = 'bold';
-    cancelButton.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
-    cancelButton.style.transition = 'all 0.3s ease';
-    cancelButton.addEventListener('mouseenter', () => {
-        cancelButton.style.backgroundColor = '#555';
-    });
-    cancelButton.addEventListener('mouseleave', () => {
+    let cancelButton;
+    if (!singleButton) {
+        cancelButton = document.createElement('button');
+        cancelButton.textContent = '取消';
+        cancelButton.style.width = '48%';
+        cancelButton.style.padding = '10px 0';
         cancelButton.style.backgroundColor = '#444';
-    });
+        cancelButton.style.color = '#fff';
+        cancelButton.style.border = 'none';
+        cancelButton.style.borderRadius = '5px';
+        cancelButton.style.cursor = 'pointer';
+        cancelButton.style.fontWeight = 'bold';
+        cancelButton.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+        cancelButton.style.transition = 'all 0.3s ease';
+        cancelButton.addEventListener('mouseenter', () => {
+            cancelButton.style.backgroundColor = '#555';
+        });
+        cancelButton.addEventListener('mouseleave', () => {
+            cancelButton.style.backgroundColor = '#444';
+        });
+
+        // 取消按钮点击事件
+        cancelButton.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+    }
 
     // 关闭对话框功能
     const closeDialog = () => {
@@ -832,17 +841,16 @@ function confirmDialog(message, onConfirm) {
     // 确认按钮点击事件
     confirmButton.addEventListener('click', () => {
         closeDialog();
-        if (typeof onConfirm === 'function') {
+        if (!singleButton && typeof onConfirm === 'function') {
             onConfirm();
         }
     });
 
-    // 取消按钮点击事件
-    cancelButton.addEventListener('click', closeDialog);
-
     // 组装对话框
     buttonContainer.appendChild(confirmButton);
-    buttonContainer.appendChild(cancelButton);
+    if (!singleButton) {
+        buttonContainer.appendChild(cancelButton);
+    }
     dialog.appendChild(dialogText);
     dialog.appendChild(buttonContainer);
     overlay.appendChild(dialog);
@@ -850,6 +858,7 @@ function confirmDialog(message, onConfirm) {
     // 将对话框添加到页面
     document.body.appendChild(overlay);
 }
+
 
 //全局来记录用户输入
 const userInputData = {}
@@ -1509,6 +1518,9 @@ progressStyle.innerHTML = `
         }
     }
 `;
+
+// 全局标识是否测试过数据
+let isExecutedComplete = false;
 document.head.appendChild(progressStyle); // 修复了变量名错误
 ws.onmessage = (event) => {
     // 包个异步，方便调用getview
@@ -1534,6 +1546,8 @@ ws.onmessage = (event) => {
         }
 
         if (message.type === 'executed' && message.data?.output?.images?.length > 0) {
+            // 设置标识为 true
+            isExecutedComplete = true;
             // 获取生成的图像文件名
             const imageFilename = message.data.output.images[0].filename;
             let data = {
@@ -2384,7 +2398,14 @@ document.getElementById('cancel-button').addEventListener('click', () => {
 
 // 下一步按钮逻辑
 document.getElementById('next-button').addEventListener('click', () => {
-    completeWrapTab.click();
+    if (!isExecutedComplete) {
+        // 弹出确认对话框
+        confirmDialog('请先完成测试，再执行下一步', null, true);
+
+    } else {
+        // 如果已完成生成，直接执行后续逻辑
+        completeWrapTab.click();
+    }
 });
 
 // 上一步按钮逻辑
