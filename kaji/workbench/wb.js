@@ -851,6 +851,8 @@ function confirmDialog(message, onConfirm) {
     document.body.appendChild(overlay);
 }
 
+//全局来记录用户输入
+const userInputData = {}
 
 function createUserInputFormComponent(title, detail, inputField) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
@@ -860,7 +862,7 @@ function createUserInputFormComponent(title, detail, inputField) {
     const formHeader = createFormHeader(title, inputField);
 
     // 创建输入框
-    let { userInput, previewContainer } = createUserInput(detail);
+    let { userInput, previewContainer } = createUserInput(detail,title);
 
     // 添加标题栏、预览容器（如果存在）和输入框到表单组件
     formComponent.appendChild(formHeader);
@@ -923,8 +925,14 @@ function createFormHeader(title, inputField) {
 }
 
 // 创建用户输入框（根据 detail 判断类型）
-function createUserInput(detail) {
+function createUserInput(detail, title) {
     let userInput, previewContainer;
+
+    // 解析标题，分离 key 和子项
+    const [parentKey, subKey] = title.split(':');
+    if (!userInputData[parentKey]) {
+        userInputData[parentKey] = {};
+    }
 
     if (Array.isArray(detail) && detail.length > 1 && detail[1].image_upload) {
         userInput = document.createElement('input');
@@ -934,9 +942,17 @@ function createUserInput(detail) {
 
         // 创建预览容器
         previewContainer = createImagePreviewContainer(userInput);
+
+        // 监听文件输入框的变化
+        userInput.addEventListener('change', () => {
+            const files = Array.from(userInput.files).map(file => file.name);
+            userInputData[parentKey][subKey] = files;
+            console.log('User input data updated:', userInputData);
+        });
     } else if (Array.isArray(detail) && Array.isArray(detail[0]) && detail[0].length > 0) {
         // 下拉框输入框
         userInput = document.createElement('select');
+
         // 添加选项
         detail[0].forEach(option => {
             const optionElement = document.createElement('option');
@@ -944,7 +960,13 @@ function createUserInput(detail) {
             optionElement.textContent = option;
             userInput.appendChild(optionElement);
         });
-    }else {
+
+        // 监听下拉框的变化
+        userInput.addEventListener('change', () => {
+            userInputData[parentKey][subKey] = userInput.value;
+            console.log('User input data updated:', userInputData);
+        });
+    } else {
         const [inputType, inputParams] = detail;
         userInput = document.createElement('input');
 
@@ -961,6 +983,12 @@ function createUserInput(detail) {
             userInput.type = 'text';
             userInput.value = '';
         }
+
+        // 监听输入框的变化
+        userInput.addEventListener('input', () => {
+            userInputData[parentKey][subKey] = userInput.value;
+            console.log('User input data updated:', userInputData);
+        });
     }
 
     // 设置输入框样式
@@ -1100,6 +1128,7 @@ panelsContainer.className = 'panels-container';
 //获取当前工作流output信息
 const graphPrompt = await app.graphToPrompt();
 const output = graphPrompt.output; 
+console.log("graphToPrompt output:",output)
 const workflow = graphPrompt.workflow; 
 //格式化，当过滤数据用，这些项在可选节点中显示
 function restructureData(inputData) {
@@ -1383,11 +1412,52 @@ userTips.appendChild(createTooltip('可以模拟用户输入，并测试生成')
 const generateTestButton = userInput.querySelector('#generate-test-button');
 generateTestButton.addEventListener('click', async () => {
     try {
-        const result = await postPrompt(output);
+        // 调用 postPrompt 之前，先用用户输入表单的值来更新 output 的值
+        const updatedOutput = updateOutputWithUserInput(output, userInputData);
+
+        console.log("更新后的 output 数据:", JSON.stringify(updatedOutput, null, 2));
+
+        // 发起生图请求
+        const result = await postPrompt(updatedOutput);
     } catch (error) {
         console.error("生成失败:", error);
     }
 });
+
+//用用户输入更新生图prompt
+function updateOutputWithUserInput(output, userInputData) {
+    const updatedOutput = JSON.parse(JSON.stringify(output)); // 深拷贝 output
+
+    // 遍历 output 的每个节点
+    Object.keys(updatedOutput).forEach(nodeId => {
+        const node = updatedOutput[nodeId];
+        const classType = node.class_type;
+
+        // 如果 userInputData 中有对应的 classType
+        if (userInputData[classType]) {
+            const inputs = node.inputs || {};
+            const optional = node.optional || {};
+
+            // 更新 inputs 字段
+            Object.keys(inputs).forEach(inputKey => {
+                if (userInputData[classType][inputKey] !== undefined) {
+                    inputs[inputKey] = userInputData[classType][inputKey];
+                    console.log(`更新节点 ${nodeId} 的 inputs.${inputKey} 为:`, userInputData[classType][inputKey]);
+                }
+            });
+
+            // 更新 optional 字段
+            Object.keys(optional).forEach(optionalKey => {
+                if (userInputData[classType][optionalKey] !== undefined) {
+                    optional[optionalKey] = userInputData[classType][optionalKey];
+                    console.log(`更新节点 ${nodeId} 的 optional.${optionalKey} 为:`, userInputData[classType][optionalKey]);
+                }
+            });
+        }
+    });
+
+    return updatedOutput;
+}
 
 // #region 模拟用户生成面板
 const mockUser = document.createElement('div');
@@ -1702,15 +1772,11 @@ function adjustInfoCardHeight() {
 
         // 获取各个部分的高度
         const phoneHeight = phoneContains.offsetHeight;
-        console.log("phoneHeight",phoneHeight)
         const headerHeight = headerImage.offsetHeight;
-        console.log("headerHeight",headerHeight)
         const titleDescriptionHeight = titleDescriptionCard.offsetHeight;
-        console.log("headerHeight",titleDescriptionHeight)
 
         // 计算 info-card 的高度
         const remainingHeight = phoneHeight - headerHeight - titleDescriptionHeight - 83; // 额外的间距修正
-        console.log("remainingHeight",remainingHeight)
         // 设置 info-card 的高度
         infoCard.style.height = `${remainingHeight}px`;
  
