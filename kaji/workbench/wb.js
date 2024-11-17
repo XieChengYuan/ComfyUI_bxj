@@ -981,6 +981,8 @@ function confirmDialog(message, onConfirm, singleButton = false) {
 //全局来记录用户输入
 const userInputData = {}
 
+//TODO 1.构建表单元数据同作品一块上传
+
 function createUserInputFormComponent(title, detail, inputField) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
 
@@ -1783,7 +1785,7 @@ headerImageSection.innerHTML = `
                 <span style="font-size: 2rem; font-weight: bold; text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.5);">+</span>
             </div>
         </div>
-         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px; color:#666;">最多选择三张图片/视频</p>
+         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px; color:#666;">最多选择三张图片</p>
     </div>
     
     <div id="delete-area" style="
