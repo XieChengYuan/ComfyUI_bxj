@@ -2427,7 +2427,7 @@ pluginUI.appendChild(footer);
 // #region 功能逻辑
 // 显示/隐藏插件 UI 界面
 workbenchButton.addEventListener('click', () => {
-    isExecutedComplete = true;
+    isExecutedComplete = false;
     overlay.style.display = 'block';
     pluginUI.classList.add('show');
 });
