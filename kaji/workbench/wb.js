@@ -1483,6 +1483,18 @@ dropdownItems.forEach(item => {
                     const nodeComponent = event.target.closest('.node-component');
                     const componentName = nodeComponent.dataset.componentName;
 
+                // 从 userInputData 中移除对应的参数
+                const [parentKey, subKey] = componentName.split(':');
+                if (userInputData[parentKey]) {
+                    delete userInputData[parentKey][subKey]; // 删除对应的子键
+                    // 如果主键下没有子项，则删除主键
+                    if (Object.keys(userInputData[parentKey]).length === 0) {
+                        delete userInputData[parentKey];
+                    }
+                }
+
+                console.log('Updated userInputData after deletion:', userInputData);
+
                     // 删除用户输入表单组件
                     removeUserInputFormComponent(componentName);
 
@@ -2547,7 +2559,7 @@ document.getElementById('publish-button').addEventListener('click', async () => 
         showLoading('正在上传作品，请稍候...');
 
         // 获取用户输入数据
-        const userInputData = getUserInputData();
+        const productInputData = getUserInputData();
 
         // 上传所有图片，获取公网地址
         const mediaUrls = await Promise.all(
@@ -2574,11 +2586,11 @@ document.getElementById('publish-button').addEventListener('click', async () => 
 
         // 构造上传数据
         const uploadData = {
-            title: userInputData['title'] || '', // 从用户输入中获取标题
-            description: userInputData['description'] || '', // 获取描述
-            price: userInputData['price'] || 0, // 获取价格，默认为0
-            freeTimes: userInputData['freeTimes'] || 0, // 获取免费次数，默认为0
-            promotionEnabled: userInputData['promotionEnabled'] || false, // 获取推广状态
+            title: productInputData['title'] || '', // 从用户输入中获取标题
+            description: productInputData['description'] || '', // 获取描述
+            price: productInputData['price'] || 0, // 获取价格，默认为0
+            freeTimes: productInputData['freeTimes'] || 0, // 获取免费次数，默认为0
+            promotionEnabled: productInputData['promotionEnabled'] || false, // 获取推广状态
             images: mediaUrls, // 传入选中的头图地址
             uniqueid: generateUUIDv4(), // 生成唯一标识，保证全球唯一
             workflow: workflow,
