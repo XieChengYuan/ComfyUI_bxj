@@ -410,17 +410,22 @@ def reformat(uploadData):
     uniqueid = uploadData.get("uniqueid")
     workflow = uploadData.get("workflow")
     output = uploadData.get("output")
-
+    formMetaData = uploadData.get("formMetaData")
+    
     if not uniqueid or not workflow or not output:
         raise ValueError("缺少必要字段：uniqueid, workflow 或 output")
+    
+    # 确保 formMetaData 是字典类型
+    if not isinstance(formMetaData, dict):
+        raise TypeError("formMetaData 必须是一个字典对象")
 
     images = uploadData.get("images", [])
     # 替换上传数据中的 media_urls
     uploadData["media_urls"] = images
 
     # 添加额外数据
-    uploadData["uni_hash"] = uni_hash  # 根据 uniqueid 生成唯一哈希
-    uploadData["inputTypeArr"] = getInputTypeArr(output)
+    uploadData["uni_hash"] = uni_hash 
+    uploadData["formMetaData"] = formMetaData
 
     # 移除工作流不上传
     uploadData.pop("output", None)
@@ -736,9 +741,7 @@ async def get_wss_server_url():
                 )
 
 
-token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE4NDY5MDAsImV4cCI6MTczMTg1NDEwMH0.yw_JO5w3RqvLFzYV96AjoaZnWs_nL9gQPvpQYeFO5Gk"
-
-
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE5MTkyNjksImV4cCI6MTczMTkyNjQ2OX0.Rhcw8KweVcXgXqrWfSYkPaL-jCFZm_y4wJeVgf21uiQ"
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
 async def getProducts(req):
     jsonData = {}

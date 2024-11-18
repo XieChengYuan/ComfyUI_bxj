@@ -980,6 +980,7 @@ function confirmDialog(message, onConfirm, singleButton = false) {
 
 //全局来记录用户输入
 const userInputData = {}
+const formMetaData = {}
 
 //TODO 1.构建表单元数据同作品一块上传
 
@@ -1001,9 +1002,28 @@ function createUserInputFormComponent(title, detail, inputField) {
     // 添加到用户输入表单容器
     userInputFormContainer.appendChild(formComponent);
 
+    // 初始化 formMetaData 的结构
+    const [parentKey, subKey] = title.split(':');
+    if (!formMetaData[parentKey]) {
+        formMetaData[parentKey] = {};
+    }
+    formMetaData[parentKey][subKey] = {
+        detail, // 保存元数据的结构
+        inputTips: inputField.value || inputField.placeholder, // 保存 inputField 的初始值
+    };
+
+    //TODO： 
+    //1。清空detail图片选项，里面自动包含了input下的文件名
+    //2. 生成中，不可有其他操作
+
+    console.log('Updated formMetaData:', formMetaData);
+
     // 实时更新标题
     inputField.addEventListener('input', () => {
-        formHeader.querySelector('#form-title').textContent = inputField.value || inputField.placeholder;
+        const updatedValue = inputField.value || inputField.placeholder;
+        formHeader.querySelector('#form-title').textContent = updatedValue;
+        formMetaData[parentKey][subKey].inputTips = updatedValue; // 更新 inputTips 的值
+        console.log('Updated formMetaData after input change:', formMetaData);
     });
 }
 
@@ -1062,6 +1082,13 @@ function createUserInput(detail, title) {
     if (!userInputData[parentKey]) {
         userInputData[parentKey] = {};
     }
+
+    if (!formMetaData[parentKey]) {
+        formMetaData[parentKey] = {};
+    }
+
+    // 更新 formMetaData
+    formMetaData[parentKey][subKey] = detail;
 
     if (Array.isArray(detail) && detail.length > 1 && detail[1].image_upload) {
         userInput = document.createElement('input');
@@ -1497,6 +1524,17 @@ dropdownItems.forEach(item => {
 
                 console.log('Updated userInputData after deletion:', userInputData);
 
+                // 从 formMetaData 中移除对应的元数据
+                if (formMetaData[parentKey]) {
+                    delete formMetaData[parentKey][subKey]; // 删除对应的子键
+                    // 如果主键下没有子项，则删除主键
+                    if (Object.keys(formMetaData[parentKey]).length === 0) {
+                        delete formMetaData[parentKey];
+                    }
+                }
+
+                console.log('Updated formMetaData after deletion:', formMetaData);
+
                     // 删除用户输入表单组件
                     removeUserInputFormComponent(componentName);
 
@@ -1708,11 +1746,8 @@ ws.onmessage = (event) => {
             } else {
                 console.error("未能提取图像 URL");
             }
-
-            // 隐藏进度条容器
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-            }, 200); // 可根据需求调整延迟时间
+           
+            progressContainer.style.display = 'none';
         }
     })(); // 立即调用这个 async 函数
 };
@@ -2056,9 +2091,9 @@ function getUserInputData() {
         // 获取价格
         price: parseFloat(document.getElementById('price-input').value) || 0,
         // 获取免费次数
-        freeTimes: parseInt(document.getElementById('free-input').value) || 0,
+        free_times: parseInt(document.getElementById('free-input').value) || 0,
         // 获取推广状态
-        promotionEnabled: promotionToggle.checked
+        distribution_status: promotionToggle.checked?1:0
     };
 }
 
@@ -2588,15 +2623,16 @@ document.getElementById('publish-button').addEventListener('click', async () => 
 
         // 构造上传数据
         const uploadData = {
-            title: productInputData['title'] || '', // 从用户输入中获取标题
-            description: productInputData['description'] || '', // 获取描述
-            price: productInputData['price'] || 0, // 获取价格，默认为0
-            freeTimes: productInputData['freeTimes'] || 0, // 获取免费次数，默认为0
-            promotionEnabled: productInputData['promotionEnabled'] || false, // 获取推广状态
-            images: mediaUrls, // 传入选中的头图地址
-            uniqueid: generateUUIDv4(), // 生成唯一标识，保证全球唯一
+            title: productInputData['title'] || '',                             // 从用户输入中获取标题
+            description: productInputData['description'] || '',                 // 获取描述
+            price: productInputData['price'] || 0,                              // 获取价格，默认为0
+            freeTimes: productInputData['freeTimes'] || 0,                      // 获取免费次数，默认为0
+            promotionEnabled: productInputData['promotionEnabled'] || false,    // 获取推广状态
+            images: mediaUrls,                                                  // 传入选中的头图地址
+            uniqueid: generateUUIDv4(),                                         // 生成唯一标识，保证全球唯一
             workflow: workflow,
-            output: output,
+            output: output,                                                      //作品工作流数据
+            formMetaData:formMetaData,                                           //表单结构
         };
 
         console.log('准备上传的作品数据: ', uploadData);
