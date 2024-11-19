@@ -61,37 +61,6 @@ HEART_INTERVAL = 30
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
 
-def download_media(url, save_dir):
-    try:
-        # 发送 GET 请求获取内容
-        response = requests.get(url, stream=True)
-        response.raise_for_status()  # 如果请求不成功则抛出异常
-
-        # 从 Content-Type 或 URL 中获取文件扩展名
-        content_type = response.headers.get("content-type")
-        extension = mimetypes.guess_extension(content_type) or os.path.splitext(url)[1]
-        if not extension:
-            extension = ".bin"  # 如果无法确定扩展名，使用 .bin
-
-        # 生成唯一的文件名
-        filename = f"{os.urandom(8).hex()}{extension}"
-        save_path = os.path.join(save_dir, filename)
-
-        # 确保保存目录存在
-        os.makedirs(save_dir, exist_ok=True)
-
-        # 以二进制写模式打开文件，并写入内容
-        with open(save_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
-
-        print(f"媒体文件已成功下载到: {save_path}")
-        return save_path
-    except requests.exceptions.RequestException as e:
-        print(f"下载媒体文件时发生错误: {e}")
-        return None
-
-
 def parse_args():
     args = parser.parse_args()
     return args if args.listen else parser.parse_args([])
@@ -555,7 +524,7 @@ async def process_server_message1(message):
 
         if message_type == "generate_submit":
             print("收到生图消息", data)
-            deal_recv_generate_data(data)
+            await deal_recv_generate_data(data)
 
         elif message_type == "cancel_listen":
             print("任务进度监听取消", data)
@@ -741,7 +710,7 @@ async def get_wss_server_url():
                 )
 
 
-token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE5MTkyNjksImV4cCI6MTczMTkyNjQ2OX0.Rhcw8KweVcXgXqrWfSYkPaL-jCFZm_y4wJeVgf21uiQ"
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE5NDEzMzMsImV4cCI6MTczMTk0ODUzM30.q4KwshczA2jPcaiHkaqNSLjiAzrwCPxacBhD0ozFql0"
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
 async def getProducts(req):
     jsonData = {}
@@ -1197,43 +1166,108 @@ def add_task_to_queue(task_data):
     gc_task_queue.put(task_data)
     print("任务(包含工作流的数据)添加至工作队列。")
 
+async def download_media_async(url, save_dir):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    logging.error(f"下载媒体文件失败: {url}, 状态码: {response.status}")
+                    return None
 
-def deal_recv_generate_data(recv_data):
-    # 本地将会有多个uniqueid（对应创作者服务端上的不同作品）
+                # 从 Content-Type 或 URL 中获取文件扩展名
+                content_type = response.headers.get("content-type")
+                extension = mimetypes.guess_extension(content_type) or os.path.splitext(url)[1]
+                if not extension:
+                    extension = ".bin"
+
+                # 生成唯一文件名
+                filename = f"{os.urandom(8).hex()}{extension}"
+                save_path = os.path.join(save_dir, filename)
+
+                # 确保保存目录存在
+                os.makedirs(save_dir, exist_ok=True)
+
+                # 写入文件
+                with open(save_path, "wb") as file:
+                    while chunk := await response.content.read(8192):
+                        file.write(chunk)
+
+                print(f"媒体文件已成功下载到: {save_path}")
+                return save_path
+    except Exception as e:
+        logging.error(f"下载媒体文件时发生错误: {e}")
+        return None
+
+
+async def download_all_media(form_data):
+    download_tasks = []
+
+    for key, value in form_data.items():
+        # 如果字段包含 URL，则创建下载任务
+        if isinstance(value, dict) and "url" in value:
+            url = value["url"]
+            download_tasks.append(download_media_async(url, media_save_dir))
+
+    # 等待所有任务完成
+    downloaded_paths = await asyncio.gather(*download_tasks)
+    return downloaded_paths
+
+
+def update_output_from_form_data(form_data, output, downloaded_paths):
+    download_index = 0
+
+    for key, value in form_data.items():
+        # 分解 key，"KSampler:sampler_name" -> ["KSampler", "sampler_name"]
+        key_parts = key.split(":")
+        if not key_parts:
+            continue
+
+        # 找到对应的 output 项
+        output_item = None
+        for output_key, output_value in output.items():
+            if output_value["class_type"] == key_parts[0]:
+                output_item = output_value
+                break
+
+        if not output_item:
+            logging.warning(f"未找到匹配的 class_type: {key_parts[0]}，跳过 {key}")
+            continue
+
+        # 定位到 inputs 部分，根据后续的 key_parts 更新字段
+        current = output_item.get("inputs", {})
+        for part in key_parts[1:-1]:
+            current = current.setdefault(part, {})
+
+        # 如果是媒体文件，替换为本地路径
+        if isinstance(value, dict) and "url" in value:
+            local_path = downloaded_paths[download_index]
+            download_index += 1
+            if local_path:
+                current[key_parts[-1]] = os.path.basename(local_path)  # 更新为文件名
+            else:
+                logging.error(f"媒体文件下载失败: {value['url']}")
+        else:
+            # 直接更新字段
+            current[key_parts[-1]] = value
+
+
+async def deal_recv_generate_data(recv_data):
+    # 获取 uniqueid 和任务 ID
     uniqueid = recv_data["uniqueid"]
     kaji_generate_record_id = recv_data["kaji_generate_record_id"]
+    form_data = recv_data["formData"]
 
+    # 从 uniqueid 加载对应的 output
     output = get_output(uniqueid + ".json")
 
-    # 检查消息中是否包含 medias,获取下载的local_path路径，替换output中的图片名为图片输入
-    if "medias" in recv_data:
-        for media in recv_data["medias"]:
-            url_temp = media["url_temp"]
-            # 媒体文件下载计时
-            start_time = time.time()
-            local_path = download_media(url_temp, media_save_dir)
-            end_time = time.time()
-            duration = end_time - start_time
-            print(f"媒体文件下载耗时: {duration}")
-            if local_path:
-                # 获取文件名及后缀
-                filename = os.path.basename(local_path)
-                index = media["index"]
-                if index in output:
-                    output[index]["inputs"]["image"] = filename
-                else:
-                    logging.error(f"未找到索引为 {index} 的输出项")
-            else:
-                logging.error(f"下载媒体失败: {url_temp}")
-    # 检查消息中是否包含 texts，并添加 input_des 到 output 的相应索引
-    if "texts" in recv_data:
-        for text in recv_data["texts"]:
-            input_des = text["input_des"]
-            index = text["index"]
-            if index in output:
-                output[index]["inputs"]["text"] = input_des
-            else:
-                logging.error(f"未找到索引为 {index} 的输出项")
+    # 等待下载所有媒体文件才难生成
+    # 下载失败或其他插件端生成异常，如果没有同步到生成失败的状态去退款，可能需要一个统一的超时处理执行退款等炒作
+    downloaded_paths = await download_all_media(form_data)
+
+    # 更新 output 数据
+    update_output_from_form_data(form_data, output, downloaded_paths)
+
+    # 预处理并继续后续操作
     pre_process_data(kaji_generate_record_id, output)
 
 
