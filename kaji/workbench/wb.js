@@ -590,7 +590,7 @@ function connectWebSocket(endpoint, data) {
         console.warn(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
     };
 
-    return ws; 
+    return ws;
 }
 
 
@@ -684,9 +684,9 @@ async function postPrompt(output) {
     let data = {
         "client_id": clientId,
         "prompt": output,
-        "workflow":workflow,
+        "workflow": workflow,
     }
-    const res = await request("/prompt", data,'POST');
+    const res = await request("/prompt", data, 'POST');
     if (res) {
         console.log('请求 Comfyui 生图: ', res);
         return res;
@@ -837,7 +837,7 @@ function createTooltip(text) {
     const tooltipIcon = document.createElement('span');
     tooltipIcon.className = 'tooltip-icon';
     tooltipIcon.innerHTML = `${tipSvgCode}`;
-    tooltipIcon.style.transform = 'translateY(5px)';  
+    tooltipIcon.style.transform = 'translateY(5px)';
 
     const tooltipText = document.createElement('span');
     tooltipText.className = 'tooltip-text';
@@ -992,7 +992,7 @@ function createUserInputFormComponent(title, detail, inputField) {
     const formHeader = createFormHeader(title, inputField);
 
     // 创建输入框
-    let { userInput, previewContainer } = createUserInput(detail,title);
+    let { userInput, previewContainer } = createUserInput(detail, title);
 
     // 添加标题栏、预览容器（如果存在）和输入框到表单组件
     formComponent.appendChild(formHeader);
@@ -1059,7 +1059,7 @@ function createFormHeader(title, inputField) {
     // 创建标题
     const formTitle = document.createElement('p');
     formTitle.textContent = inputField.value || inputField.placeholder;
-    formTitle.id = 'form-title'; 
+    formTitle.id = 'form-title';
     formTitle.style.fontWeight = '500';
     formTitle.style.fontSize = '1.0rem';
     formTitle.style.color = '#dcdcdc';
@@ -1243,7 +1243,7 @@ function addFocusBlurListener(inputElement) {
     });
 
     inputElement.addEventListener('blur', () => {
-        inputElement.style.borderColor = '#555'; 
+        inputElement.style.borderColor = '#555';
         inputElement.style.boxShadow = 'inset 2px 2px 5px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2)';
     });
 }
@@ -1283,9 +1283,9 @@ panelsContainer.className = 'panels-container';
 //---------------------------------------数据处理-----------------------------------------------
 //获取当前工作流output信息
 const graphPrompt = await app.graphToPrompt();
-const output = graphPrompt.output; 
-console.log("graphToPrompt output:",output)
-const workflow = graphPrompt.workflow; 
+const output = graphPrompt.output;
+console.log("graphToPrompt output:", output)
+const workflow = graphPrompt.workflow;
 //格式化，当过滤数据用，这些项在可选节点中显示
 function restructureData(inputData) {
     const result = new Map();
@@ -1311,7 +1311,7 @@ function restructureData(inputData) {
     return result;
 }
 const fliterData = restructureData(output)
-console.log("节点过滤数据：",fliterData)
+console.log("节点过滤数据：", fliterData)
 //获取系统中所有节点对应参数，供表单使用，上面工作流信息只包含当前已选参数，手动过滤
 const allObjectInfo = await getObjectInfo()
 //重构数据对应表单输入,只考虑可交互数据，link数据不考虑（这里将input内包含二项数组的视为连接数据）
@@ -1350,8 +1350,8 @@ function filterObjectInfo(allObjectInfo, filterData) {
     return nodes;
 }
 
-const nodes = filterObjectInfo(allObjectInfo,fliterData)
-console.log("获取可控制输入的节点",nodes)
+const nodes = filterObjectInfo(allObjectInfo, fliterData)
+console.log("获取可控制输入的节点", nodes)
 
 //----------------------------------------------------------------------------------------------
 // 创建作品参数模块容器
@@ -1512,28 +1512,28 @@ dropdownItems.forEach(item => {
                     const nodeComponent = event.target.closest('.node-component');
                     const componentName = nodeComponent.dataset.componentName;
 
-                // 从 userInputData 中移除对应的参数
-                const [parentKey, subKey] = componentName.split(':');
-                if (userInputData[parentKey]) {
-                    delete userInputData[parentKey][subKey]; // 删除对应的子键
-                    // 如果主键下没有子项，则删除主键
-                    if (Object.keys(userInputData[parentKey]).length === 0) {
-                        delete userInputData[parentKey];
+                    // 从 userInputData 中移除对应的参数
+                    const [parentKey, subKey] = componentName.split(':');
+                    if (userInputData[parentKey]) {
+                        delete userInputData[parentKey][subKey]; // 删除对应的子键
+                        // 如果主键下没有子项，则删除主键
+                        if (Object.keys(userInputData[parentKey]).length === 0) {
+                            delete userInputData[parentKey];
+                        }
                     }
-                }
 
-                console.log('Updated userInputData after deletion:', userInputData);
+                    console.log('Updated userInputData after deletion:', userInputData);
 
-                // 从 formMetaData 中移除对应的元数据
-                if (formMetaData[parentKey]) {
-                    delete formMetaData[parentKey][subKey]; // 删除对应的子键
-                    // 如果主键下没有子项，则删除主键
-                    if (Object.keys(formMetaData[parentKey]).length === 0) {
-                        delete formMetaData[parentKey];
+                    // 从 formMetaData 中移除对应的元数据
+                    if (formMetaData[parentKey]) {
+                        delete formMetaData[parentKey][subKey]; // 删除对应的子键
+                        // 如果主键下没有子项，则删除主键
+                        if (Object.keys(formMetaData[parentKey]).length === 0) {
+                            delete formMetaData[parentKey];
+                        }
                     }
-                }
 
-                console.log('Updated formMetaData after deletion:', formMetaData);
+                    console.log('Updated formMetaData after deletion:', formMetaData);
 
                     // 删除用户输入表单组件
                     removeUserInputFormComponent(componentName);
@@ -1697,7 +1697,7 @@ ws.onmessage = (event) => {
     (async () => {
         const message = JSON.parse(event.data);
         console.log("收到的 WebSocket 消息：", message);
-        
+
         if (message.type === 'execution_start') {
             // 显示进度条容器并初始化进度为0
             progressContainer.style.display = 'flex';
@@ -1709,7 +1709,7 @@ ws.onmessage = (event) => {
         if (message.type === 'progress' && message.data) {
             const { value, max } = message.data;
             const progressPercentage = (value / max) * 100;
-            
+
             // 更新进度条和文字
             progressBar.value = progressPercentage;
             progressText.textContent = `生成中... ${Math.round(progressPercentage)}%`;
@@ -1724,10 +1724,10 @@ ws.onmessage = (event) => {
                 "filename": imageFilename,
                 "type": "output",
             };
-            
+
             // 使用 await 调用异步函数获取图像 URL
             const imageUrl = await getView(data);
-            console.log("imageUrl",imageUrl)
+            console.log("imageUrl", imageUrl)
             if (imageUrl) {
                 // 创建图片元素
                 const imageElement = new Image();
@@ -1735,8 +1735,8 @@ ws.onmessage = (event) => {
                 imageElement.style.maxWidth = "100%";
                 imageElement.style.borderRadius = "8px";
                 imageElement.style.boxShadow = "0px 4px 12px rgba(0, 0, 0, 0.3)";
-                imageElement.style.margin = "auto"; 
-                imageElement.style.display = "block"; 
+                imageElement.style.margin = "auto";
+                imageElement.style.display = "block";
 
                 // 替换 SVG 显示生成的图像
                 const svgContainer = document.getElementById("moc-svg-contains");
@@ -1746,7 +1746,7 @@ ws.onmessage = (event) => {
             } else {
                 console.error("未能提取图像 URL");
             }
-           
+
             progressContainer.style.display = 'none';
         }
     })(); // 立即调用这个 async 函数
@@ -1951,16 +1951,16 @@ function adjustInfoCardHeight() {
 
     // 检查元素是否存在，防止报错
 
-        // 获取各个部分的高度
-        const phoneHeight = phoneContains.offsetHeight;
-        const headerHeight = headerImage.offsetHeight;
-        const titleDescriptionHeight = titleDescriptionCard.offsetHeight;
+    // 获取各个部分的高度
+    const phoneHeight = phoneContains.offsetHeight;
+    const headerHeight = headerImage.offsetHeight;
+    const titleDescriptionHeight = titleDescriptionCard.offsetHeight;
 
-        // 计算 info-card 的高度
-        const remainingHeight = phoneHeight - headerHeight - titleDescriptionHeight - 83; // 额外的间距修正
-        // 设置 info-card 的高度
-        infoCard.style.height = `${remainingHeight}px`;
- 
+    // 计算 info-card 的高度
+    const remainingHeight = phoneHeight - headerHeight - titleDescriptionHeight - 83; // 额外的间距修正
+    // 设置 info-card 的高度
+    infoCard.style.height = `${remainingHeight}px`;
+
 }
 
 // 调用调整函数
@@ -2046,11 +2046,11 @@ const promotionToggle = settingsSection.querySelector('#promotion-toggle');
 const promotionStatus = settingsSection.querySelector('#promotion-status');
 const productTitleInput = settingsSection.querySelector('#title-input');
 const productDesInput = settingsSection.querySelector('#description-input');
-const priceInput = settingsSection.querySelector('#price-input'); 
-const freeInput = settingsSection.querySelector('#free-input'); 
-const priceInputText = settingsSection.querySelector('#price-input-text'); 
-const freeInputText = settingsSection.querySelector('#free-input-text'); 
-const switchText = settingsSection.querySelector('#switch-text'); 
+const priceInput = settingsSection.querySelector('#price-input');
+const freeInput = settingsSection.querySelector('#free-input');
+const priceInputText = settingsSection.querySelector('#price-input-text');
+const freeInputText = settingsSection.querySelector('#free-input-text');
+const switchText = settingsSection.querySelector('#switch-text');
 
 // 为每个输入框添加焦点和失焦事件监听器
 addFocusBlurListener(productTitleInput);
@@ -2093,7 +2093,7 @@ function getUserInputData() {
         // 获取免费次数
         free_times: parseInt(document.getElementById('free-input').value) || 0,
         // 获取推广状态
-        distribution_status: promotionToggle.checked?1:0
+        distribution_status: promotionToggle.checked ? 1 : 0
     };
 }
 
@@ -2169,7 +2169,7 @@ const carouselControls = headerImageSection.querySelector('#carousel-controls');
 const carouselControls2 = previewSection.querySelector('#carousel-controls');
 
 // 数组用于存储选择的图片
-let selectedImages = []; 
+let selectedImages = [];
 let currentIndex = 0;
 
 // 更新预览区的文本提示状态
@@ -2210,17 +2210,17 @@ const updateThumbnailDisplay = () => {
 
 // 更新作品头图区域的显示
 const updateRealTimeHeaderImage = () => {
-    console.log("selectedImages.length",selectedImages.length)
+    console.log("selectedImages.length", selectedImages.length)
     const realTimeHeaderImage = previewSection.querySelector('#real-time-header-image'); // 作品头图区域
 
-    console.log("selectedImages.length",selectedImages.length)
+    console.log("selectedImages.length", selectedImages.length)
     if (selectedImages.length === 0) {
         // 如果没有图片，显示文本
         realTimeHeaderImage.textContent = '此处是作品头图区'; // 显示文本
         realTimeHeaderImage.style.backgroundImage = 'none'; // 不显示背景图片
     } else {
         // 如果有图片，隐藏文本
-        console.log("wenbenneirong",realTimeHeaderImage.textContent)
+        console.log("wenbenneirong", realTimeHeaderImage.textContent)
         realTimeHeaderImage.textContent = ''; // 清空文本
         if (selectedImages.length === 1) {
             // 如果只有一张图片，显示该图片
@@ -2271,7 +2271,7 @@ const updateCarouselControls = () => {
             carouselControls2.appendChild(dot);
         });
         carouselControls.style.display = 'flex'; // 显示控制点
-        carouselControls2.style.display = 'flex'; 
+        carouselControls2.style.display = 'flex';
     } else {
         // 如果只有一张图片，隐藏控制点
         carouselControls.style.display = 'none';
@@ -2350,7 +2350,7 @@ const selectImage = () => {
                 deleteArea.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.6)';
-                    deleteArea.style.boxShadow = '0px 6px 20px rgba(255, 59, 48, 0.7)'; 
+                    deleteArea.style.boxShadow = '0px 6px 20px rgba(255, 59, 48, 0.7)';
                 });
 
                 deleteArea.addEventListener('dragleave', () => {
@@ -2361,10 +2361,10 @@ const selectImage = () => {
                 deleteArea.addEventListener('drop', (e) => {
                     e.preventDefault();
                     const imageToDelete = e.dataTransfer.getData('text/plain');
-                
+
                     // 删除 selectedImages 数组中的特定图片
                     selectedImages = selectedImages.filter(img => img !== imageToDelete);
-                
+
                     // 删除对应的缩略图
                     const imageThumbnails = imageSelectionContainer.querySelectorAll('.image-thumbnail');
                     imageThumbnails.forEach(thumbnail => {
@@ -2372,18 +2372,18 @@ const selectImage = () => {
                             thumbnail.remove(); // 删除该缩略图
                         }
                     });
-                
+
                     // 更新预览区显示
                     updateThumbnailDisplay();
                     updateRealTimeHeaderImage(); // 同步更新作品头图区域
-                
+
                     // 更新轮播图控制点
                     updateCarouselControls();
-                
+
                     // 恢复删除区域样式
                     deleteArea.style.backgroundColor = 'rgba(255, 59, 48, 0.4)';
                     deleteArea.style.boxShadow = '0px 4px 15px rgba(255, 59, 48, 0.5)';
-                
+
                     // 如果图片数量小于3，显示“+”按钮
                     if (selectedImages.length < 3) {
                         addImageArea.style.display = 'flex';
@@ -2442,10 +2442,10 @@ workManagementContainer.appendChild(workManagementContent);
 // 给提示性文本容器添加样式
 const emptyContent = workManagementContainer.querySelector('.empty-content');
 emptyContent.style.display = 'flex';
-emptyContent.style.alignItems = 'center'; 
+emptyContent.style.alignItems = 'center';
 emptyContent.style.justifyContent = 'center';
-emptyContent.style.height = '85%'; 
-emptyContent.style.textAlign = 'center'; 
+emptyContent.style.height = '85%';
+emptyContent.style.textAlign = 'center';
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容
@@ -2475,11 +2475,7 @@ pluginUI.appendChild(footer);
 
 // #region 功能逻辑
 // 显示/隐藏插件 UI 界面
-workbenchButton.addEventListener('click', () => {
-    isExecutedComplete = false;
-    overlay.style.display = 'block';
-    pluginUI.classList.add('show');
-});
+
 
 // 获取顶部导航栏按钮和内容容器
 const appParamsTab = document.getElementById('app-params-tab');
@@ -2539,7 +2535,7 @@ completeWrapTab.addEventListener('click', () => {
         confirmDialog('请先完成作品生成测试', null, true);
         return;
 
-    } 
+    }
     // 移除其他tab的active状态，给当前tab添加active状态
     completeWrapTab.classList.add('active');
     appParamsTab.classList.remove('active');
@@ -2609,12 +2605,12 @@ document.getElementById('publish-button').addEventListener('click', async () => 
             selectedImages.map(async (base64Image, index) => {
                 try {
                     console.log(`正在上传第 ${index + 1} 张图片...`);
-    
+
                     // 上传单张图片，直接接收返回的格式化对象
                     const result = await uploadSingleImage(base64Image);
-    
+
                     console.log(`第 ${index + 1} 张图片上传成功，返回数据：`, result);
-    
+
                     // 直接返回后端格式化的对象
                     return result;
                 } catch (error) {
@@ -2623,7 +2619,7 @@ document.getElementById('publish-button').addEventListener('click', async () => 
                 }
             })
         );
-        
+
         // 上传完成后打印结果
         console.log("所有图片上传完成，媒体 URL 数据：", mediaUrls);
 
@@ -2638,7 +2634,7 @@ document.getElementById('publish-button').addEventListener('click', async () => 
             uniqueid: generateUUIDv4(),                                         // 生成唯一标识，保证全球唯一
             workflow: workflow,
             output: output,                                                      //作品工作流数据
-            formMetaData:formMetaData,                                           //表单结构
+            formMetaData: formMetaData,                                           //表单结构
         };
 
         console.log('准备上传的作品数据: ', uploadData);
@@ -2672,15 +2668,28 @@ document.getElementById('publish-button').addEventListener('click', async () => 
 // 按钮拖动功能
 let isDragging = false;
 let offsetX, offsetY;
+let hasMoved = false;
+let startX, startY;
 
 workbenchButton.addEventListener('mousedown', (e) => {
     isDragging = true;
+    hasMoved = false; // 重置移动标志
+    startX = e.clientX; // 记录初始鼠标位置
+    startY = e.clientY;
     offsetX = e.clientX - workbenchButton.getBoundingClientRect().left;
     offsetY = e.clientY - workbenchButton.getBoundingClientRect().top;
 });
 
 document.addEventListener('mousemove', (e) => {
     if (isDragging) {
+        const moveX = e.clientX - startX; // 计算 X 轴移动距离
+        const moveY = e.clientY - startY; // 计算 Y 轴移动距离
+        const moveDistance = Math.sqrt(moveX ** 2 + moveY ** 2); // 计算总移动距离
+
+        if (moveDistance > 5) { // 超过 5 像素视为移动
+            hasMoved = true;
+        }
+
         workbenchButton.style.left = `${e.clientX - offsetX}px`;
         workbenchButton.style.top = `${e.clientY - offsetY}px`;
         workbenchButton.style.position = 'absolute';
@@ -2688,7 +2697,18 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', () => {
-    isDragging = false;
+    if (isDragging) {
+        if (!hasMoved) {
+            // 视为点击操作
+            isExecutedComplete = false;
+            overlay.style.display = 'block';
+            pluginUI.classList.add('show');
+        } else {
+            // 可添加拖动完成后的逻辑
+            console.log('拖动完成');
+        }
+    }
+    isDragging = false; // 重置拖动标志
 });
 
 // #endregion 功能逻辑部分
