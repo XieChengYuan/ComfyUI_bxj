@@ -2534,6 +2534,12 @@ workManagementTab.addEventListener('click', () => {
 
 // 完成封装tab切换逻辑
 completeWrapTab.addEventListener('click', () => {
+    if (!isExecutedComplete) {
+        // 弹出确认对话框
+        confirmDialog('请先完成作品生成测试', null, true);
+        return;
+
+    } 
     // 移除其他tab的active状态，给当前tab添加active状态
     completeWrapTab.classList.add('active');
     appParamsTab.classList.remove('active');
