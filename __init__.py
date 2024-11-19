@@ -23,7 +23,7 @@ WEB_DIRECTORY2 = f"./{extension_dirs[0]}"
 thread_run()
 
 NODE_CLASS_MAPPINGS = {
-    "sdCpm": sdCpm,
+    #"sdCpm": sdCpm,
     "cpm_textInput": cpm_textInput,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {"sdCpm": "sdCpm", "cpm_textInput": "cpm_textInput"}
