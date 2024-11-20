@@ -2446,6 +2446,7 @@ emptyContent.style.alignItems = 'center';
 emptyContent.style.justifyContent = 'center';
 emptyContent.style.height = '85%';
 emptyContent.style.textAlign = 'center';
+
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容
@@ -2568,10 +2569,12 @@ appParamsTab.addEventListener('click', () => {
 
 // 取消按钮逻辑
 document.getElementById('cancel-button').addEventListener('click', () => {
-    pluginUI.classList.remove('show');
-    setTimeout(() => {
-        overlay.style.display = 'none';
-    }, 300);
+    confirmDialog('确定要退出吗？所有未保存的更改将会丢失。', () => {
+        pluginUI.classList.remove('show');
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    });  
 });
 
 // 下一步按钮逻辑
@@ -2628,7 +2631,7 @@ document.getElementById('publish-button').addEventListener('click', async () => 
             title: productInputData['title'] || '',                             // 从用户输入中获取标题
             description: productInputData['description'] || '',                 // 获取描述
             price: productInputData['price'] || 0,                              // 获取价格，默认为0
-            freeTimes: productInputData['freeTimes'] || 0,                      // 获取免费次数，默认为0
+            free_times: productInputData['free_times'] || 0,                      // 获取免费次数，默认为0
             promotionEnabled: productInputData['promotionEnabled'] || false,    // 获取推广状态
             images: mediaUrls,                                                  // 传入选中的头图地址
             uniqueid: generateUUIDv4(),                                         // 生成唯一标识，保证全球唯一

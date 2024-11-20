@@ -46,7 +46,7 @@ END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts"
 END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
 END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
-# TEST_UID = "66c981879d9f915ad268680a"
+TEST_UID = "66c981879d9f915ad268680a"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -715,6 +715,7 @@ token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZD
 async def getProducts(req):
     jsonData = {}
     async with aiohttp.ClientSession() as session:
+        jsonData["user_id"] = TEST_UID
         jsonData["token"] = token
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
@@ -730,6 +731,7 @@ async def getProducts(req):
 async def deleteProduct(req):
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
+        jsonData["user_id"] = TEST_UID
         jsonData["token"] = token
         # jsonData["product_id"] = "xxxx"  # 写死
         async with session.post(
@@ -854,6 +856,8 @@ async def kaji_r(req):
         newData = reformat(jsonData)
         # 添加 token
         newData["token"] = token
+        newData["user_id"] = TEST_UID
+        
         #logging.info(f"作品上传接口入参: {newData}")
 
         async with aiohttp.ClientSession() as session:
