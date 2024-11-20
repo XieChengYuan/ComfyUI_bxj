@@ -445,11 +445,13 @@ async def send_heartbeat(websocket):
 def get_filenames(directory):
     if os.path.exists(directory):
         all_entries = os.listdir(directory)
+        # 过滤掉隐藏文件和非文件
         all_entries = [
             name
             for name in all_entries
-            if os.path.isfile(os.path.join(directory, name))
+            if os.path.isfile(os.path.join(directory, name)) and not name.startswith(".")
         ]
+        # 提取文件名（去掉扩展名）
         all_entries = [name.split(".")[0] for name in all_entries]
         return all_entries
     else:

@@ -2601,7 +2601,6 @@ workManagementContent.appendChild(noMoreText);
 // 将容器插入页面
 document.body.appendChild(workManagementContainer);
 
-
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容
