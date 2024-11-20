@@ -619,8 +619,9 @@ async function getProduct(data) {
 //请求删除作品
 async function deleteProduct(data) {
     const res = await request(END_POINT_URL_FOR_PRODUCT_3, data);
-    if (res?.data?._id) {
-        console.log('请求删除作品 ', res.data);
+    if (res) {
+        console.log('请求删除作品 ', res);
+        return res;
     } else {
         console.error('请求删除作品失败: ', res);
     }
@@ -2572,8 +2573,20 @@ async function loadWorks() {
             deleteButton.style.cursor = 'pointer';
 
             deleteButton.onclick = () =>
-                confirmDialog(`确认删除${work.title}吗？`, () => {
-                    workCard.remove();
+                confirmDialog(`确认删除${work.title}吗？`, async () => {
+                    try {
+                        const response = await deleteProduct({ product_id: work._id });
+                        console.log(response)
+                        if (response?.success) {
+                            workCard.remove();
+                            confirmDialog('删除成功！', null, true);
+                        } else {
+                            confirmDialog('删除失败，请重试！', null, true);
+                        }
+                    } catch (error) {
+                        console.error('删除作品时出错：', error);
+                        confirmDialog('删除作品时出错，请稍后重试！', null, true);
+                    }
                 });
 
             addHoverEffect(deleteButton);
