@@ -492,7 +492,7 @@ document.head.appendChild(style);
 // #endregion 所有样式
 
 // #region 前后端通信接口
-
+const user_id = "66c1f5419d9f915ad22bf864"
 // 请求url
 //生成一个全局的客户端标识，客户端自己生图用，不用关心百分百的唯一性
 function generateClientId() {
@@ -757,6 +757,19 @@ function generateUUIDv4() {
         )
         .join('');
 }
+
+// 工具函数：添加按钮的悬停效果
+const addHoverEffect = (button) => {
+    button.style.transition = 'transform 0.2s, background-color 0.2s';
+    button.onmouseover = () => button.style.transform = 'scale(1.1)';
+    button.onmouseout = () => button.style.transform = 'scale(1)';
+};
+
+// 时间戳转换为可读日期格式
+const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+};
 
 //通用loading框
 function showLoading(message = "加载中...") {
@@ -2433,207 +2446,183 @@ workManagementContent.innerHTML = `
     <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">作品管理</h3>
 `;
 
-// 模拟作品数据
-const works = [
-    {
-        title: '作品1',
-        date: '2024.06.30',
-        users: 0,
-        order: 1,
-        image: 'https://via.placeholder.com/150x100', // 示例图片
-    },
-    {
-        title: '作品2',
-        date: '2024.07.01',
-        users: 10,
-        order: 2,
-        image: 'https://via.placeholder.com/150x100',
-    },
-    {
-        title: '作品3',
-        date: '2024.07.02',
-        users: 5,
-        order: 3,
-        image: 'https://via.placeholder.com/150x100',
-    },
-];
+// 获取数据并生成内容
+async function loadWorks() {
+    const data = { user_id: user_id };
+    const res = await request(END_POINT_URL_FOR_PRODUCT_1, data);
+    console.log('收到的作品数据: ', res);
+    const works = res?.data || [];
 
-if (works.length === 0) {
-    const emptyContent = document.createElement('div');
-    emptyContent.className = 'empty-content';
-    emptyContent.innerHTML = `
-        <p style="color: #888; font-size: 0.85rem; text-align: center;">
-            这里显示当前管理的作品列表，暂时没有任何内容。
-        </p>
-    `;
-    workManagementContent.appendChild(emptyContent);
-} else {
-    works.forEach((work) => {
-        const workCard = document.createElement('div');
-        workCard.className = 'work-card';
-        workCard.style.display = 'flex';
-        workCard.style.alignItems = 'center';
-        workCard.style.margin = '20px auto';
-        workCard.style.padding = '15px';
-        workCard.style.backgroundColor = '#2e2e2e';
-        workCard.style.borderRadius = '8px';
-        workCard.style.width = '92%';
-        workCard.style.transition = 'transform 0.3s, box-shadow 0.3s';
+    if (works.length === 0) {
+        const emptyContent = document.createElement('div');
+        emptyContent.className = 'empty-content';
+        emptyContent.innerHTML = `
+            <p style="color: #888; font-size: 0.85rem; text-align: center;">
+                这里显示当前管理的作品列表，暂时没有任何内容。
+            </p>
+        `;
+        workManagementContent.appendChild(emptyContent);
+    } else {
+        works.forEach((work) => {
+            console.log(work)
+            const workCard = document.createElement('div');
+            workCard.className = 'work-card';
+            workCard.style.display = 'flex';
+            workCard.style.alignItems = 'center';
+            workCard.style.margin = '20px auto';
+            workCard.style.padding = '15px';
+            workCard.style.backgroundColor = '#2e2e2e';
+            workCard.style.borderRadius = '8px';
+            workCard.style.width = '92%';
+            workCard.style.transition = 'transform 0.3s, box-shadow 0.3s';
 
-        workCard.onmouseover = () => {
-            workCard.style.transform = 'scale(1.01)';
-            workCard.style.boxShadow = '0 4px 15px rgba(0, 255, 0, 0.5)';
-        };
-        workCard.onmouseout = () => {
-            workCard.style.transform = 'scale(1)';
-            workCard.style.boxShadow = 'none';
-        };
+            workCard.onmouseover = () => {
+                workCard.style.transform = 'scale(1.01)';
+                workCard.style.boxShadow = '0 4px 15px rgba(0, 255, 0, 0.5)';
+            };
+            workCard.onmouseout = () => {
+                workCard.style.transform = 'scale(1)';
+                workCard.style.boxShadow = 'none';
+            };
 
-        const img = document.createElement('img');
-        img.src = work.image;
-        img.alt = work.title;
-        img.style.width = '150px';
-        img.style.height = '150px';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '8px';
-        img.style.marginRight = '20px';
+            const img = document.createElement('img');
+            img.src = work.media_urls[0]?.url_temp || 'https://via.placeholder.com/150x100'; // 默认图片
+            img.alt = work.title;
+            img.style.width = '150px';
+            img.style.height = '150px';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '8px';
+            img.style.marginRight = '20px';
 
-        const workInfoWrapper = document.createElement('div');
-        workInfoWrapper.style.display = 'flex';
-        workInfoWrapper.style.flexDirection = 'column';
-        workInfoWrapper.style.justifyContent = 'center';
-        workInfoWrapper.style.flex = '1';
+            const workInfoWrapper = document.createElement('div');
+            workInfoWrapper.style.display = 'flex';
+            workInfoWrapper.style.flexDirection = 'column';
+            workInfoWrapper.style.justifyContent = 'center';
+            workInfoWrapper.style.flex = '1';
 
-        const title = document.createElement('h4');
-        title.textContent = work.title;
-        title.style.color = '#fff';
-        title.style.marginBottom = '5px';
+            const title = document.createElement('h4');
+            title.textContent = work.title;
+            title.style.color = '#fff';
+            title.style.marginBottom = '5px';
 
-        const date = document.createElement('p');
-        date.textContent = `发布时间：${work.date}`;
-        date.style.color = '#888';
-        date.style.fontSize = '0.85rem';
-        date.style.marginBottom = '0px';
+            const date = document.createElement('p');
+            date.textContent = `发布时间：${formatDate(work.publish_date)}`;
+            date.style.color = '#888';
+            date.style.fontSize = '0.85rem';
+            date.style.marginBottom = '0px';
 
-        const users = document.createElement('p');
-        users.textContent = `使用人数：${work.users}`;
-        users.style.color = '#888';
-        users.style.fontSize = '0.85rem';
-        users.style.marginBottom = '10px';
+            const users = document.createElement('p');
+            users.textContent = `使用人数：${work.usage || 0}`;
+            users.style.color = '#888';
+            users.style.fontSize = '0.85rem';
+            users.style.marginBottom = '10px';
 
-        const buttons = document.createElement('div');
-        buttons.style.display = 'flex';
-        buttons.style.justifyContent = 'flex-end';
-        buttons.style.gap = '10px';
+            const buttons = document.createElement('div');
+            buttons.style.display = 'flex';
+            buttons.style.justifyContent = 'flex-end';
+            buttons.style.gap = '10px';
 
-        const addHoverEffect = (button) => {
-            button.style.transition = 'transform 0.2s, background-color 0.2s';
-            button.onmouseover = () => button.style.transform = 'scale(1.1)';
-            button.onmouseout = () => button.style.transform = 'scale(1)';
-        };
+            const qrButton = document.createElement('button');
+            qrButton.textContent = work.distribution_status === 1 ? '关闭分成' : '开启分成';
+            qrButton.style.backgroundColor = work.distribution_status === 1 ? '#34c759' : '#5a5a5a';
+            qrButton.style.color = '#fff';
+            qrButton.style.border = 'none';
+            qrButton.style.padding = '5px 10px';
+            qrButton.style.borderRadius = '5px';
+            qrButton.style.cursor = 'pointer';
 
-        const qrButton = document.createElement('button');
-        qrButton.textContent = '开启推广';
-        qrButton.dataset.originalColor = '#5a5a5a';
-        qrButton.style.backgroundColor = qrButton.dataset.originalColor;
-        qrButton.style.color = '#fff';
-        qrButton.style.border = 'none';
-        qrButton.style.padding = '5px 10px';
-        qrButton.style.borderRadius = '5px';
-        qrButton.style.cursor = 'pointer';
+            qrButton.onclick = () =>
+                confirmDialog(
+                    `确认${qrButton.textContent}吗？`,
+                    () => {
+                        qrButton.textContent = qrButton.textContent === '开启分成' ? '关闭分成' : '开启分成';
+                        qrButton.style.backgroundColor = qrButton.textContent === '开启分成' ? '#5a5a5a' : '#34c759';
+                    }
+                );
 
-        qrButton.onclick = () =>
-            confirmDialog(
-                `确认${qrButton.textContent === '开启推广' ? '开启' : '关闭'}推广吗？`,
-                () => {
-                    qrButton.textContent = qrButton.textContent === '开启推广' ? '关闭推广' : '开启推广';
-                    qrButton.style.backgroundColor = qrButton.textContent === '开启推广' ? '#5a5a5a' : '#34c759';
-                }
-            );
+            addHoverEffect(qrButton);
 
-        addHoverEffect(qrButton);
+            const toggleButton = document.createElement('button');
+            toggleButton.textContent = work.author_status === 1 ? '下架' : '上架';
+            toggleButton.style.backgroundColor = work.author_status === 1 ? '#34c759' : '#5a5a5a';
+            toggleButton.style.color = '#fff';
+            toggleButton.style.border = 'none';
+            toggleButton.style.padding = '5px 10px';
+            toggleButton.style.borderRadius = '5px';
+            toggleButton.style.cursor = 'pointer';
 
-        const toggleButton = document.createElement('button');
-        toggleButton.textContent = '上架';
-        toggleButton.dataset.originalColor = '#5a5a5a';
-        toggleButton.style.backgroundColor = toggleButton.dataset.originalColor;
-        toggleButton.style.color = '#fff';
-        toggleButton.style.border = 'none';
-        toggleButton.style.padding = '5px 10px';
-        toggleButton.style.borderRadius = '5px';
-        toggleButton.style.cursor = 'pointer';
+            toggleButton.onclick = () =>
+                confirmDialog(
+                    `确认${toggleButton.textContent}吗？`,
+                    () => {
+                        toggleButton.textContent = toggleButton.textContent === '上架' ? '下架' : '上架';
+                        toggleButton.style.backgroundColor = toggleButton.textContent === '上架' ? '#5a5a5a' : '#34c759';
+                    }
+                );
 
-        toggleButton.onclick = () =>
-            confirmDialog(
-                `确认${toggleButton.textContent === '上架' ? '上架' : '下架'}${work.title}吗？`,
-                () => {
-                    toggleButton.textContent = toggleButton.textContent === '上架' ? '下架' : '上架';
-                    toggleButton.style.backgroundColor = toggleButton.textContent === '上架' ? '#5a5a5a' : '#34c759';
-                }
-            );
+            addHoverEffect(toggleButton);
 
-        addHoverEffect(toggleButton);
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '删除';
+            deleteButton.style.backgroundColor = '#5a5a5a';
+            deleteButton.style.color = '#fff';
+            deleteButton.style.border = 'none';
+            deleteButton.style.padding = '5px 10px';
+            deleteButton.style.borderRadius = '5px';
+            deleteButton.style.cursor = 'pointer';
 
-        const deleteButton = document.createElement('button');
-        deleteButton.textContent = '删除';
-        deleteButton.style.backgroundColor = '#5a5a5a';
-        deleteButton.style.color = '#fff';
-        deleteButton.style.border = 'none';
-        deleteButton.style.padding = '5px 10px';
-        deleteButton.style.borderRadius = '5px';
-        deleteButton.style.cursor = 'pointer';
+            deleteButton.onclick = () =>
+                confirmDialog(`确认删除${work.title}吗？`, () => {
+                    workCard.remove();
+                });
 
-        deleteButton.onclick = () =>
-            confirmDialog(`确认删除${work.title}吗？`, () => {
-                workCard.remove();
-                alert(`${work.title} 已删除`);
-            });
+            addHoverEffect(deleteButton);
 
-        addHoverEffect(deleteButton);
+            const modifyButton = document.createElement('button');
+            modifyButton.textContent = '修改';
+            modifyButton.style.backgroundColor = '#34c759';
+            modifyButton.style.color = '#fff';
+            modifyButton.style.border = 'none';
+            modifyButton.style.padding = '5px 10px';
+            modifyButton.style.borderRadius = '5px';
+            modifyButton.style.cursor = 'pointer';
 
-        const modifyButton = document.createElement('button');
-        modifyButton.textContent = '修改';
-        modifyButton.style.backgroundColor = '#34c759';
-        modifyButton.style.color = '#fff';
-        modifyButton.style.border = 'none';
-        modifyButton.style.padding = '5px 10px';
-        modifyButton.style.borderRadius = '5px';
-        modifyButton.style.cursor = 'pointer';
+            modifyButton.onclick = () =>
+                confirmDialog(`确认修改${work.title}吗？`, () => {
+                    alert(`${work.title} 已修改`);
+                });
 
-        modifyButton.onclick = () =>
-            confirmDialog(`确认修改${work.title}吗？`, () => {
-                alert(`${work.title} 已修改`);
-            });
+            addHoverEffect(modifyButton);
 
-        addHoverEffect(modifyButton);
+            buttons.appendChild(qrButton);
+            buttons.appendChild(toggleButton);
+            buttons.appendChild(deleteButton);
+            buttons.appendChild(modifyButton);
 
-        buttons.appendChild(qrButton);
-        buttons.appendChild(toggleButton);
-        buttons.appendChild(deleteButton);
-        buttons.appendChild(modifyButton);
+            workInfoWrapper.appendChild(title);
+            workInfoWrapper.appendChild(date);
+            workInfoWrapper.appendChild(users);
+            workInfoWrapper.appendChild(buttons);
 
-        workInfoWrapper.appendChild(title);
-        workInfoWrapper.appendChild(date);
-        workInfoWrapper.appendChild(users);
-        workInfoWrapper.appendChild(buttons);
+            workCard.appendChild(img);
+            workCard.appendChild(workInfoWrapper);
 
-        workCard.appendChild(img);
-        workCard.appendChild(workInfoWrapper);
+            workManagementContent.appendChild(workCard);
+        });
+    }
 
-        workManagementContent.appendChild(workCard);
-    });
+    const noMoreText = document.createElement('p');
+    noMoreText.textContent = '暂无更多作品';
+    noMoreText.style.textAlign = 'center';
+    noMoreText.style.color = '#888';
+    noMoreText.style.marginTop = '20px';
+
+    workManagementContent.appendChild(noMoreText);
+    workManagementContainer.appendChild(workManagementContent);
 }
 
-const noMoreText = document.createElement('p');
-noMoreText.textContent = '暂无更多作品';
-noMoreText.style.textAlign = 'center';
-noMoreText.style.color = '#888';
-noMoreText.style.marginTop = '20px';
-
-workManagementContent.appendChild(noMoreText);
-workManagementContainer.appendChild(workManagementContent);
-document.body.appendChild(workManagementContainer);
-
+// 加载作品
+loadWorks();
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容

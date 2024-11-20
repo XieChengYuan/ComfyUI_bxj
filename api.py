@@ -722,7 +722,7 @@ async def getProducts(req):
         jsonData["token"] = token
         jsonData["user_id"] = user_id
         async with session.post(
-            BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_1, json=jsonData
         ) as response:
             res_js = await response.json()
             data = res_js.get("data", {})
@@ -739,7 +739,7 @@ async def deleteProduct(req):
         jsonData["user_id"] = user_id
         # jsonData["product_id"] = "xxxx"  # 写死
         async with session.post(
-            BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_3, json=jsonData
         ) as response:
             res_js = await response.json()
             data = res_js.get("data", {})
