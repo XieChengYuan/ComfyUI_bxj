@@ -655,7 +655,11 @@ async def process_server_message2(message):
         media_link = await get_generated_image(filename)
         executed_success = {
             "type": "executed_success",
-            "data": {"prompt_id": prompt_id, "media_link": media_link},
+            "data": {
+                "prompt_id": prompt_id,
+                "media_link": media_link,
+                "media_type": "image",
+            },
         }
         await wss_c1.send(json.dumps(executed_success))
 
