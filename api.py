@@ -46,7 +46,6 @@ END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts"
 END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
 END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
-TEST_UID = "66c981879d9f915ad268680a"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -54,12 +53,12 @@ wss_c1 = None
 wss_c2 = None
 last_value = None
 last_time = None
-RECONNECT_DELAY = 1
-MAX_RECONNECT_DELAY = 3
+RECONNECT_DELAY = 5
 MAX_RECONNECT_ATTEMPTS = 10
 HEART_INTERVAL = 30
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
+
 
 def parse_args():
     args = parser.parse_args()
@@ -104,8 +103,9 @@ def get_port_from_cmd(default_port=8188):
 
     return port if port else default_port
 
+
 def get_machine_unique_id():
-    #获取机器唯一标识符（跨平台适配）
+    # 获取机器唯一标识符（跨平台适配）
     try:
         system = platform.system()
 
@@ -156,6 +156,7 @@ def get_machine_unique_id():
 
     except Exception as e:
         raise RuntimeError(f"Failed to retrieve machine ID: {e}")
+
 
 def generate_unique_hash():
     # 考虑到端口动态性和mac地址如果在虚拟机中更改mac，或者更换网卡也会受影响，使用机器唯一标识符生成稳定的哈希值
@@ -380,10 +381,10 @@ def reformat(uploadData):
     workflow = uploadData.get("workflow")
     output = uploadData.get("output")
     formMetaData = uploadData.get("formMetaData")
-    
+
     if not uniqueid or not workflow or not output:
         raise ValueError("缺少必要字段：uniqueid, workflow 或 output")
-    
+
     # 确保 formMetaData 是字典类型
     if not isinstance(formMetaData, dict):
         raise TypeError("formMetaData 必须是一个字典对象")
@@ -393,7 +394,7 @@ def reformat(uploadData):
     uploadData["media_urls"] = images
 
     # 添加额外数据
-    uploadData["uni_hash"] = uni_hash 
+    uploadData["uni_hash"] = uni_hash
     uploadData["formMetaData"] = formMetaData
 
     # 移除工作流不上传
@@ -403,12 +404,12 @@ def reformat(uploadData):
     return uploadData
 
 
-
-
 # 插件端与服务器端的心跳。理论上，初始化一次，任务变动（新增+1、完成-1）时触发一次。就可以。 其余时刻发送（数据都是重复）是多余的（网络探活不靠这个）
 async def send_heartbeat(websocket):
     while True:
         try:
+            print(f"开始发送心跳, 状态为：{websocket.state}")
+
             # 获取所有工作流id
             workflow_path = (
                 find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/workflow"
@@ -427,14 +428,16 @@ async def send_heartbeat(websocket):
                     "uniqueids": uniqueids,
                 },
             }
-            print(f"ping 数据：{payload}")
+            print(f"发送 ping 数据：{payload}")
 
             heartbeat_message = json.dumps(payload)
             await websocket.send(heartbeat_message)
-            print("Sent heartbeat")
-
+        except websockets.ConnectionClosedError:
+            print("发送ping失败, WebSocket连接意外关闭，可能网络出现问题")
+            raise e
         except Exception as e:
-            print(f"Error sending heartbeat or no response: {e}")
+            print(f"发送ping失败: {e}")
+            raise e
 
         await asyncio.sleep(HEART_INTERVAL)
 
@@ -456,40 +459,31 @@ def get_filenames(directory):
 async def receive_messages(websocket, c_flag):
     try:
         while True:
-            try:
-                message = await websocket.recv()
-                if c_flag == 1:
-                    print(f"接收支付宝云端ws事件数据: {message}")
-                    await process_server_message1(message)
-                elif c_flag == 2:
-                    print(f"接收comfyUI的生图任务信息: {message}")
-                    await process_server_message2(message)
-
-            except asyncio.CancelledError:
-                print("Task was cancelled during recv.")
-                break
+            message = await websocket.recv()
+            if c_flag == 1:
+                print(f"接收支付宝云端ws事件数据: {message}")
+                await process_server_message1(message)
+            elif c_flag == 2:
+                print(f"接收comfyUI的生图任务信息: {message}")
+                await process_server_message2(message)
     except Exception as e:
-        print(f"Error in receiving messages 代码异常，必须处理: {e}")
+        print(f"ws{c_flag} 接收消息失败: {e}")
         raise e
 
 
-async def handle_websocket(c_flag, reconnect_attempts=0):
+async def handle_websocket(c_flag):
     global wss_c1, wss_c2
-    if c_flag == 1:
-        url = await get_wss_server_url()
-        print(f"websocket connected to WebSocket server at {url}")
-    elif c_flag == 2:
-        url = cfy_ws_url
-    else:
-        raise ValueError("无效的 c_flag 值")
-    logging.info(f"当前url: {url}")
-    reconnect_delay = RECONNECT_DELAY
     while True:
-        print(f"ws{c_flag} 开始发起连接")
         try:
+            if c_flag == 1:
+                url = await get_wss_server_url()
+            elif c_flag == 2:
+                url = cfy_ws_url
+            else:
+                return
+            logging.info(f"ws{c_flag},url: {url},开始发起连接")
             async with websockets.connect(url) as websocket:
                 print(f"ws{c_flag} 连接成功！~")
-                reconnect_delay = RECONNECT_DELAY
                 if c_flag == 1:
                     wss_c1 = websocket
                     tasks = [
@@ -503,12 +497,12 @@ async def handle_websocket(c_flag, reconnect_attempts=0):
                     ]
                 await asyncio.gather(*tasks)
         except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
-            print(f"WebSocket connection closed: {c_flag},{e}")
-            await asyncio.sleep(reconnect_delay)
+            print(f"ws{c_flag} 连接不上{e}")
         except Exception as e:
-            print(f"WebSocket connection error: {c_flag},{e}")
-            await asyncio.sleep(reconnect_delay)
-            reconnect_delay = min(reconnect_delay * 2, MAX_RECONNECT_DELAY)
+            print(f"ws{c_flag} 连接失败,请检查网络{e}")
+
+        # asyncio.gather其中的任务不退出，就不会重新连
+        await asyncio.sleep(RECONNECT_DELAY)
 
 
 # 咔叽服务端的数据
@@ -659,25 +653,26 @@ async def process_server_message2(message):
         media_link = await get_generated_image(filename)
         executed_success = {
             "type": "executed_success",
-            "data": {
-                "prompt_id": prompt_id,
-                "media_link": media_link,
-                "clientType": "plugin",
-                "connCode": 1,
-            },
+            "data": {"prompt_id": prompt_id, "media_link": media_link},
         }
         await wss_c1.send(json.dumps(executed_success))
+
+        #  结果发送成功才可以把这个prompt_id删除，否则后续需要补偿
+        bd.remove_value(prompt_id)
     elif message_type == "execution_success":
         # 该任务所有节点完成，任务也完成。此时可以通知下
-        prompt_id = message_json["data"]["prompt_id"]
-        bd.remove_value(prompt_id)
-
-        # 这里也可以用来记录生图全耗时、（生图开始 - 生图开始）
-        timestamp = message_json["data"]["timestamp"]
-
         await update_all_prompt_status()
+
     elif message_type == "execution_error":
         print(f"执行错误: {message_json}")
+        # 该任务出错了。需要通知下
+        prompt_id = message_json["data"]["prompt_id"]
+
+        execution_error = {"type": "execution_error", "data": {"prompt_id": prompt_id}}
+        await wss_c1.send(json.dumps(execution_error))
+        #  结果发送成功才可以把这个prompt_id删除，否则后续需要补偿
+        bd.remove_value(prompt_id)
+
     # 可以根据需要添加更多消息类型的处理
 
 
@@ -710,13 +705,16 @@ async def get_wss_server_url():
                 )
 
 
+user_id = "66c981879d9f915ad268680a"
 token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE5NDEzMzMsImV4cCI6MTczMTk0ODUzM30.q4KwshczA2jPcaiHkaqNSLjiAzrwCPxacBhD0ozFql0"
+
+
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
 async def getProducts(req):
     jsonData = {}
     async with aiohttp.ClientSession() as session:
-        jsonData["user_id"] = TEST_UID
         jsonData["token"] = token
+        jsonData["user_id"] = user_id
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
         ) as response:
@@ -731,8 +729,8 @@ async def getProducts(req):
 async def deleteProduct(req):
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
-        jsonData["user_id"] = TEST_UID
         jsonData["token"] = token
+        jsonData["user_id"] = user_id
         # jsonData["product_id"] = "xxxx"  # 写死
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=jsonData
@@ -742,9 +740,10 @@ async def deleteProduct(req):
             print("res_js", res_js)
 
             return web.json_response(res_js)
-        
-#前端直传有跨域问题，暂时不知道咋解决，先传给python端。
-#前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
+
+
+# 前端直传有跨域问题，暂时不知道咋解决，先传给python端。
+# 前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
 @server.PromptServer.instance.routes.post(END_POINT_URL3)
 async def uploadFile(req):
     try:
@@ -792,7 +791,9 @@ async def uploadFile(req):
         print(f"文件已成功保存到本地: {temp_path}")
 
         # 验证文件是否为有效图片（可选）
-        if not temp_path.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')):
+        if not temp_path.lower().endswith(
+            (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp")
+        ):
             return web.Response(status=400, text="Unsupported file type")
 
         # 上传到远程存储服务
@@ -800,11 +801,13 @@ async def uploadFile(req):
             upload_url = f"{BASE_URL}{END_POINT_URL3}"  # 替换为实际上传接口
             payload = {
                 "imageBase": base64_data_str,  # 传递原始的 Base64 数据
-                "filename": filename
+                "filename": filename,
             }
             headers = {"Authorization": f"Bearer {token}"}
 
-            async with session.post(upload_url, json=payload, headers=headers) as response:
+            async with session.post(
+                upload_url, json=payload, headers=headers
+            ) as response:
                 if response.status == 200:
                     res_js = await response.json()
                     uploaded_url = res_js.get("data", {}).get("tempUrl")
@@ -812,16 +815,18 @@ async def uploadFile(req):
 
                     if uploaded_url:
                         # 返回格式化的响应
-                        return web.json_response({
-                            "type": "images",
-                            "url": fileID,
-                            "url_temp": uploaded_url
-                        })
+                        return web.json_response(
+                            {"type": "images", "url": fileID, "url_temp": uploaded_url}
+                        )
                     else:
-                        return web.Response(status=500, text="Failed to retrieve uploaded URL")
+                        return web.Response(
+                            status=500, text="Failed to retrieve uploaded URL"
+                        )
                 else:
                     error_text = await response.text()
-                    return web.Response(status=response.status, text=f"Upload failed: {error_text}")
+                    return web.Response(
+                        status=response.status, text=f"Upload failed: {error_text}"
+                    )
 
     except Exception as e:
         print(f"错误: {str(e)}")
@@ -856,12 +861,14 @@ async def kaji_r(req):
         newData = reformat(jsonData)
         # 添加 token
         newData["token"] = token
-        newData["user_id"] = TEST_UID
-        
-        #logging.info(f"作品上传接口入参: {newData}")
+        newData["user_id"] = user_id
+
+        # logging.info(f"作品上传接口入参: {newData}")
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=newData) as response:
+            async with session.post(
+                BASE_URL + END_POINT_URL_FOR_PRODUCT_2, json=newData
+            ) as response:
                 try:
                     # 解析响应数据
                     res = await response.text()
@@ -902,9 +909,10 @@ async def kaji_r(req):
         return web.Response(status=500, text="Internal Server Error")
 
 
-
 def save_workflow(uniqueid, data):
-    base_path = os.path.join(find_project_root(), "custom_nodes/ComfyUI_Bxj/config/json/")
+    base_path = os.path.join(
+        find_project_root(), "custom_nodes/ComfyUI_Bxj/config/json/"
+    )
 
     # 检查并创建主目录
     if not os.path.exists(base_path):
@@ -927,6 +935,7 @@ def save_workflow(uniqueid, data):
         json.dump(data.get("output", {}), f, indent=4, ensure_ascii=False)
 
     print(f"工作流数据已保存: \nWorkflow: {workflow_file}\nOutput: {output_file}")
+
 
 def thread_exe():
     global is_connection
@@ -992,7 +1001,7 @@ async def get_queue_from_comfyui():
 
     # 构建请求的 URL
     url = f"{comfyui_address}/queue"
-    logging.info(f"请求 ComfyUI 的队列数据: {url}")
+    logging.info(f"请求 ComfyUI 的队列详情: {url}")
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -1013,7 +1022,7 @@ async def get_remaining_from_comfyui():
 
     # 构建请求的 URL
     url = f"{comfyui_address}/prompt"
-    logging.info(f"请求 ComfyUI 的队列数据: {url}")
+    logging.info(f"请求 ComfyUI 的队列大小: {url}")
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -1027,7 +1036,8 @@ async def get_remaining_from_comfyui():
                     f"获取队列大小失败，状态码: {response.status}, 错误信息: {error_text}"
                 )
                 return None
-            
+
+
 @DeprecationWarning
 async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
     comfyui_address = get_comfyui_address()
@@ -1170,6 +1180,7 @@ def add_task_to_queue(task_data):
     gc_task_queue.put(task_data)
     print("任务(包含工作流的数据)添加至工作队列。")
 
+
 async def download_media_async(url, save_dir):
     try:
         async with aiohttp.ClientSession() as session:
@@ -1180,7 +1191,9 @@ async def download_media_async(url, save_dir):
 
                 # 从 Content-Type 或 URL 中获取文件扩展名
                 content_type = response.headers.get("content-type")
-                extension = mimetypes.guess_extension(content_type) or os.path.splitext(url)[1]
+                extension = (
+                    mimetypes.guess_extension(content_type) or os.path.splitext(url)[1]
+                )
                 if not extension:
                     extension = ".bin"
 
