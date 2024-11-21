@@ -1006,6 +1006,114 @@ function confirmDialog(message, onConfirm, singleButton = false) {
     // 将对话框添加到页面
     document.body.appendChild(overlay);
 }
+// 发布方式选择对话框，支持两个按钮
+function publishOptionDialog(message, onNewPublish, onModifyPublish) {
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '99999999';
+
+    // 创建对话框容器
+    const dialog = document.createElement('div');
+    dialog.style.backgroundColor = '#333';
+    dialog.style.borderRadius = '8px';
+    dialog.style.padding = '20px';
+    dialog.style.width = '320px';
+    dialog.style.boxShadow = '0px 4px 12px rgba(0, 0, 0, 0.5), 0px 0px 20px rgba(92, 184, 92, 0.2)';
+    dialog.style.textAlign = 'center';
+    dialog.style.color = '#dcdcdc';
+    dialog.style.position = 'relative';
+
+    // 添加对话框标题和内容
+    const dialogText = document.createElement('p');
+    dialogText.textContent = message;
+    dialogText.style.fontSize = '1rem';
+    dialogText.style.marginBottom = '20px';
+    dialogText.style.lineHeight = '1.4';
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'space-between';
+    buttonContainer.style.marginTop = '20px';
+    buttonContainer.style.gap = '10px';
+
+    // “发布为新作品”按钮
+    const newPublishButton = document.createElement('button');
+    newPublishButton.textContent = '发布为新作品';
+    newPublishButton.style.width = '48%';
+    newPublishButton.style.padding = '10px 0';
+    newPublishButton.style.backgroundColor = '#5CB85C';
+    newPublishButton.style.color = '#fff';
+    newPublishButton.style.border = 'none';
+    newPublishButton.style.borderRadius = '5px';
+    newPublishButton.style.cursor = 'pointer';
+    newPublishButton.style.fontWeight = 'bold';
+    newPublishButton.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+    newPublishButton.style.transition = 'all 0.3s ease';
+
+    newPublishButton.addEventListener('mouseenter', () => {
+        newPublishButton.style.backgroundColor = '#4cae4c';
+    });
+    newPublishButton.addEventListener('mouseleave', () => {
+        newPublishButton.style.backgroundColor = '#5CB85C';
+    });
+
+    // “仅修改作品发布”按钮
+    const modifyPublishButton = document.createElement('button');
+    modifyPublishButton.textContent = '仅修改作品发布';
+    modifyPublishButton.style.width = '48%';
+    modifyPublishButton.style.padding = '10px 0';
+    modifyPublishButton.style.backgroundColor = '#5CB85C';
+    modifyPublishButton.style.color = '#fff';
+    modifyPublishButton.style.border = 'none';
+    modifyPublishButton.style.borderRadius = '5px';
+    modifyPublishButton.style.cursor = 'pointer';
+    modifyPublishButton.style.fontWeight = 'bold';
+    modifyPublishButton.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+    modifyPublishButton.style.transition = 'all 0.3s ease';
+
+    modifyPublishButton.addEventListener('mouseenter', () => {
+        modifyPublishButton.style.backgroundColor = '#4cae4c';
+    });
+    modifyPublishButton.addEventListener('mouseleave', () => {
+        modifyPublishButton.style.backgroundColor = '#5CB85C';
+    });
+
+    // 按钮点击事件
+    newPublishButton.addEventListener('click', async () => {
+        document.body.removeChild(overlay);
+        if (typeof onNewPublish === 'function') {
+            await onNewPublish();
+        }
+    });
+
+    modifyPublishButton.addEventListener('click', async () => {
+        document.body.removeChild(overlay);
+        if (typeof onModifyPublish === 'function') {
+            await onModifyPublish();
+        }
+    });
+
+    // 组装对话框
+    buttonContainer.appendChild(newPublishButton);
+    buttonContainer.appendChild(modifyPublishButton);
+    dialog.appendChild(dialogText);
+    dialog.appendChild(buttonContainer);
+    overlay.appendChild(dialog);
+
+    // 将对话框添加到页面
+    document.body.appendChild(overlay);
+}
+
 
 
 //全局来记录用户输入
@@ -2323,6 +2431,8 @@ addImageArea.addEventListener('mouseleave', () => {
         addImageArea.style.transform = 'scale(1)';
     }
 });
+let tempWorkData = JSON.parse(sessionStorage.getItem('temp_work'))
+let isModifyImage = false
 // 图片选择逻辑
 const selectImage = () => {
     const fileInput = document.createElement('input');
@@ -2331,6 +2441,10 @@ const selectImage = () => {
     fileInput.style.display = 'none';
 
     fileInput.addEventListener('change', (event) => {
+        if (tempWorkData) {
+            isModifyImage = true;
+            selectedImages = []
+        }
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
@@ -2442,11 +2556,56 @@ const selectImage = () => {
 // 初始“+”按钮点击事件
 addImageArea.addEventListener('click', selectImage);
 
-// 初始化
-updatePreviewText();
-updateThumbnailDisplay();
-updateRealTimeHeaderImage();
-startAutoSlide();
+function iniP2() {
+    tempWorkData = JSON.parse(sessionStorage.getItem('temp_work'));
+    console.log("hhhhhhhhhhhhhhhhh", tempWorkData)
+    //根据是否有修改数据初始化发布区域内容
+    if (tempWorkData) {
+
+
+        // 设置输入框的默认值
+        productTitleInput.value = tempWorkData.title || '';
+        productDesInput.value = tempWorkData.description || '';
+        priceInput.value = tempWorkData.price || '';
+        freeInput.value = tempWorkData.free_times || '';
+        promotionToggle.checked = tempWorkData.distribution_status === 1;
+
+        // 更新推广状态文本
+        if (promotionToggle.checked) {
+            promotionStatus.textContent = "开启";
+            promotionStatus.style.color = '#5CB85C';
+        } else {
+            promotionStatus.textContent = "关闭";
+            promotionStatus.style.color = '#FFFFFF';
+        }
+
+        // 更新预览区域的标题和描述
+        previewTitle.textContent = tempWorkData.title || '此处是作品标题';
+        previewDescription.textContent = tempWorkData.description || '此处是作品描述';
+        adjustInfoCardHeight();
+
+        // 如果存在 media_urls，展示媒体到预览区域（手机预览区域）
+        if (tempWorkData.media_urls && tempWorkData.media_urls.length > 0) {
+            selectedImages = []; // 清空已选择的图片
+            tempWorkData.media_urls.forEach((media) => {
+                const imageUrl = media.url_temp; // 假设 media 对象有 url 属性
+                selectedImages.push(imageUrl);
+            });
+
+            // 打印调试信息
+            console.log('selectedImages:', selectedImages);
+
+            // 更新显示
+            currentIndex = 0;
+            updatePreviewText();
+            updateRealTimeHeaderImage(); // 更新预览区域的头图显示
+            updateCarouselControls(); // 更新轮播控制点
+            startAutoSlide();
+        }
+    }
+
+}
+iniP2()
 // #endregion 设置同步到预览区域
 
 // #endregion 创建“作品发布”视图容器
@@ -2688,7 +2847,7 @@ async function processWork(work) {
                     const deleteFileData2 = { file_path: filePath2 };
 
                     // 同时发送删除云端作品和删除本地文件的请求
-                    const [deleteProductResponse, deleteFileResponse1,deleteFileResponse2] = await Promise.all([
+                    const [deleteProductResponse, deleteFileResponse1, deleteFileResponse2] = await Promise.all([
                         deleteProduct({ product_id: work._id }),
                         deleteFiles(deleteFileData1),
                         deleteFiles(deleteFileData2)
@@ -2735,6 +2894,7 @@ async function processWork(work) {
 
                     // 存储关键数据到 sessionStorage
                     const temp_work = {
+                        _id: work._id,
                         title: work.title,
                         description: work.description,
                         distribution_status: work.distribution_status,
@@ -2752,6 +2912,7 @@ async function processWork(work) {
                 confirmDialog('获取工作流时出错，请稍后重试！', null, true);
             } finally {
                 hideLoading();
+                isModifyImage = false;
                 pluginUI.classList.remove('show');
                 setTimeout(() => {
                     overlay.style.display = 'none';
@@ -2912,12 +3073,15 @@ workManagementTab.addEventListener('click', async () => {
 
 // 完成封装tab切换逻辑
 completeWrapTab.addEventListener('click', () => {
-    if (!isExecutedComplete) {
+    if (isExecutedComplete) {
         // 弹出确认对话框
         confirmDialog('请先完成作品生成测试', null, true);
         return;
 
     }
+    //重新拉取下修改作品的数据 
+    iniP2()
+    console.log("tempWorkData作品发布：", tempWorkData)
     // 移除其他tab的active状态，给当前tab添加active状态
     completeWrapTab.classList.add('active');
     appParamsTab.classList.remove('active');
@@ -2948,6 +3112,22 @@ appParamsTab.addEventListener('click', () => {
     updateFooterButtons();
 });
 
+// 封装 tab 切换逻辑为函数
+function switchToAppParamsTab() {
+    // 移除其他 tab 的 active 状态，给当前 tab 添加 active 状态
+    appParamsTab.classList.add('active');
+    completeWrapTab.classList.remove('active');
+    workManagementTab.classList.remove('active');
+
+    // 切换视图的显示和隐藏
+    panelsContainer.style.display = 'flex';
+    completeWrapContainer.style.display = 'none';
+    workManagementContainer.style.display = 'none';
+
+    // 更新底部按钮显示
+    updateFooterButtons();
+}
+
 // 取消按钮逻辑
 document.getElementById('cancel-button').addEventListener('click', () => {
     confirmDialog('确定要退出吗？所有未保存的更改将会丢失。', () => {
@@ -2975,8 +3155,19 @@ document.getElementById('prev-button').addEventListener('click', () => {
     appParamsTab.click();
 });
 
-//发布作品
-document.getElementById('publish-button').addEventListener('click', async () => {
+// 发布/更新作品
+document.getElementById('publish-button').addEventListener('click', () => {
+    // 弹出选择发布方式的对话框
+    publishOptionDialog('请选择发布方式：', async () => {
+        // 用户选择“发布为新作品”
+        await publishProduct(false); // false 表示不上传 work._id（新增）
+    }, async () => {
+        // 用户选择“仅修改作品发布”
+        await publishProduct(true); // true 表示上传 work._id（更新）
+    });
+});
+
+async function publishProduct(isModify) {
     try {
         // 显示加载框
         showLoading('正在上传作品，请稍候...');
@@ -2985,41 +3176,51 @@ document.getElementById('publish-button').addEventListener('click', async () => 
         const productInputData = getUserInputData();
 
         // 上传所有图片，获取公网地址
-        const mediaUrls = await Promise.all(
-            selectedImages.map(async (base64Image, index) => {
-                try {
-                    console.log(`正在上传第 ${index + 1} 张图片...`);
+        let mediaUrls;
+        if (isModifyImage) {
+            mediaUrls = await Promise.all(
+                selectedImages.map(async (base64Image, index) => {
+                    try {
+                        console.log(`正在上传第 ${index + 1} 张图片...`);
 
-                    // 上传单张图片，直接接收返回的格式化对象
-                    const result = await uploadSingleImage(base64Image);
+                        // 上传单张图片，直接接收返回的格式化对象
+                        const result = await uploadSingleImage(base64Image);
 
-                    console.log(`第 ${index + 1} 张图片上传成功，返回数据：`, result);
+                        console.log(`第 ${index + 1} 张图片上传成功，返回数据：`, result);
 
-                    // 直接返回后端格式化的对象
-                    return result;
-                } catch (error) {
-                    console.error(`第 ${index + 1} 张图片上传失败:`, error);
-                    throw new Error(`图片上传失败，请稍后重试`);
-                }
-            })
-        );
-
+                        // 直接返回后端格式化的对象
+                        return result;
+                    } catch (error) {
+                        console.error(`第 ${index + 1} 张图片上传失败:`, error);
+                        throw new Error(`图片上传失败，请稍后重试`);
+                    }
+                })
+            );
+        } else {
+            JSON.parse
+            // 如果不需要修改图片，使用已有的图片数据
+            mediaUrls = tempWorkData && tempWorkData.media_urls ? tempWorkData.media_urls : [];
+        }
         // 上传完成后打印结果
         console.log("所有图片上传完成，媒体 URL 数据：", mediaUrls);
 
         // 构造上传数据
         const uploadData = {
-            title: productInputData['title'] || '',                             // 从用户输入中获取标题
-            description: productInputData['description'] || '',                 // 获取描述
-            price: productInputData['price'] || 0,                              // 获取价格，默认为0
-            free_times: productInputData['free_times'] || 0,                      // 获取免费次数，默认为0
-            promotionEnabled: productInputData['promotionEnabled'] || false,    // 获取推广状态
-            images: mediaUrls,                                                  // 传入选中的头图地址
-            uniqueid: generateUUIDv4(),                                         // 生成唯一标识，保证全球唯一
+            title: productInputData['title'] || '',                         // 从用户输入中获取标题
+            description: productInputData['description'] || '',             // 获取描述
+            price: productInputData['price'] || 0,                          // 获取价格，默认为0
+            free_times: productInputData['free_times'] || 0,                // 获取免费次数，默认为0
+            distribution_status: productInputData['distribution_status'] || 0, // 获取推广状态
+            images: mediaUrls,                                              // 传入选中的头图地址
+            uniqueid: generateUUIDv4(), // 根据情况使用 existing uniqueid 或生成新的
             workflow: workflow,
-            output: output,                                                      //作品工作流数据
-            formMetaData: formMetaData,                                           //表单结构
+            output: output,                                                 // 作品工作流数据
+            formMetaData: formMetaData,                                     // 表单结构
         };
+
+        if (isModify && tempWorkData && tempWorkData._id) {
+            uploadData.product_id = tempWorkData._id; // 上传 work._id，用于更新作品
+        }
 
         console.log('准备上传的作品数据: ', uploadData);
 
@@ -3029,8 +3230,11 @@ document.getElementById('publish-button').addEventListener('click', async () => 
         // 处理上传结果
         if (response && response.success) {
             console.log('作品发布成功:', response.data);
+
             hideLoading(); // 隐藏加载框
             confirmDialog('作品发布成功！', () => {
+                // 删除 sessionStorage 中的 temp_work
+                sessionStorage.removeItem('temp_work');
                 pluginUI.classList.remove('show'); // 关闭插件界面
                 setTimeout(() => {
                     overlay.style.display = 'none';
@@ -3046,7 +3250,7 @@ document.getElementById('publish-button').addEventListener('click', async () => 
         hideLoading(); // 隐藏加载框
         confirmDialog('发布作品时发生错误，请检查网络或稍后重试。', null, true);
     }
-});
+}
 
 
 // 按钮拖动功能
@@ -3087,6 +3291,9 @@ document.addEventListener('mouseup', () => {
             isExecutedComplete = false;
             overlay.style.display = 'block';
             pluginUI.classList.add('show');
+
+            //点击后切换到作品参数区域
+            switchToAppParamsTab();
         } else {
             // 可添加拖动完成后的逻辑
             console.log('拖动完成');
