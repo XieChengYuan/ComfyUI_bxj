@@ -46,6 +46,8 @@ END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts"
 END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
 END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
+END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleDistributionStatus"
+END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleAuthorStatus"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -711,7 +713,7 @@ async def get_wss_server_url():
                 )
 
 
-user_id = "66c981879d9f915ad268680a"
+user_id = "66c1f5419d9f915ad22bf864"
 token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE5NDEzMzMsImV4cCI6MTczMTk0ODUzM30.q4KwshczA2jPcaiHkaqNSLjiAzrwCPxacBhD0ozFql0"
 
 
@@ -747,7 +749,35 @@ async def deleteProduct(req):
 
             return web.json_response(res_js)
 
+@server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_4)
+async def toggleAuthor(req):
+    jsonData = await req.json()
+    async with aiohttp.ClientSession() as session:
+        jsonData["token"] = token
+        jsonData["user_id"] = user_id
+        async with session.post(
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_3, json=jsonData
+        ) as response:
+            res_js = await response.json()
+            data = res_js.get("data", {})
+            print("res_js", res_js)
 
+            return web.json_response(res_js)
+        
+@server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_5)
+async def toggleDistribution(req):
+    jsonData = await req.json()
+    async with aiohttp.ClientSession() as session:
+        jsonData["token"] = token
+        jsonData["user_id"] = user_id
+        async with session.post(
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_3, json=jsonData
+        ) as response:
+            res_js = await response.json()
+            data = res_js.get("data", {})
+            print("res_js", res_js)
+
+            return web.json_response(res_js)
 # 前端直传有跨域问题，暂时不知道咋解决，先传给python端。
 # 前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
 @server.PromptServer.instance.routes.post(END_POINT_URL3)

@@ -515,9 +515,11 @@ console.log(`Hostname: ${hostname}`);
 console.log(`Port: ${port}`);
 console.log("baseUrl:", baseUrl);
 
-const END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts";      //获取作品
-const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"        //上传作品
-const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";    //删除作品
+const END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts";               //获取作品
+const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"                 //上传作品
+const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";             //删除作品
+const END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus";        //切换上下架
+const END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus";  //删除分成
 
 //临时测试数据
 const TEST_UID = "66c981879d9f915ad268680a"
@@ -635,6 +637,28 @@ async function uploadProduct(data) {
         console.log('请求发布作品 ', res.data);
     } else {
         console.error('请求发布作品失败: ', res);
+    }
+}
+
+//请求上下架
+async function toggleAuthor(data) {
+    const res = await request(END_POINT_URL_FOR_PRODUCT_4, data);
+    if (res) {
+        console.log('请求切换上下架状态 ', res);
+        return res;
+    } else {
+        console.error('请求切换上下架状态失败: ', res);
+    }
+}
+
+//请求切换分成
+async function toggleDistribution(data) {
+    const res = await request(END_POINT_URL_FOR_PRODUCT_5, data);
+    if (res) {
+        console.log('请求切换分成状态 ', res);
+        return res;
+    } else {
+        console.error('请求切换分成状态失败: ', res);
     }
 }
 
@@ -2532,14 +2556,25 @@ async function loadWorks() {
             qrButton.style.borderRadius = '5px';
             qrButton.style.cursor = 'pointer';
 
+            // 分成按钮点击事件
             qrButton.onclick = () =>
-                confirmDialog(
-                    `确认${qrButton.textContent}吗？`,
-                    () => {
-                        qrButton.textContent = qrButton.textContent === '开启分成' ? '关闭分成' : '开启分成';
-                        qrButton.style.backgroundColor = qrButton.textContent === '开启分成' ? '#5a5a5a' : '#34c759';
+                confirmDialog(`确认${qrButton.textContent}吗？`, async () => {
+                    try {
+                        const newStatus = qrButton.textContent === '开启分成' ? 1 : 0;
+                        const response = await toggleDistribution({ product_id: work._id, distribution_status: newStatus });
+
+                        if (response?.success) {
+                            qrButton.textContent = newStatus === 1 ? '关闭分成' : '开启分成';
+                            qrButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
+                            confirmDialog('分成状态切换成功！', null, true);
+                        } else {
+                            confirmDialog(`分成状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
+                        }
+                    } catch (error) {
+                        console.error('分成状态切换时出错：', error);
+                        confirmDialog('分成状态切换时出错，请稍后重试！', null, true);
                     }
-                );
+                });
 
             addHoverEffect(qrButton);
 
@@ -2552,15 +2587,25 @@ async function loadWorks() {
             toggleButton.style.borderRadius = '5px';
             toggleButton.style.cursor = 'pointer';
 
+            // 上下架按钮点击事件
             toggleButton.onclick = () =>
-                confirmDialog(
-                    `确认${toggleButton.textContent}吗？`,
-                    () => {
-                        toggleButton.textContent = toggleButton.textContent === '上架' ? '下架' : '上架';
-                        toggleButton.style.backgroundColor = toggleButton.textContent === '上架' ? '#5a5a5a' : '#34c759';
-                    }
-                );
+                confirmDialog(`确认${toggleButton.textContent}吗？`, async () => {
+                    try {
+                        const newStatus = toggleButton.textContent === '上架' ? 1 : 0;
+                        const response = await toggleAuthor({ product_id: work._id, author_status: newStatus });
 
+                        if (response?.success) {
+                            toggleButton.textContent = newStatus === 1 ? '下架' : '上架';
+                            toggleButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
+                            confirmDialog('上下架状态切换成功！', null, true);
+                        } else {
+                            confirmDialog(`上下架状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
+                        }
+                    } catch (error) {
+                        console.error('上下架状态切换时出错：', error);
+                        confirmDialog('上下架状态切换时出错，请稍后重试！', null, true);
+                    }
+                });
             addHoverEffect(toggleButton);
 
             const deleteButton = document.createElement('button');
@@ -2763,7 +2808,7 @@ document.getElementById('cancel-button').addEventListener('click', () => {
         setTimeout(() => {
             overlay.style.display = 'none';
         }, 300);
-    });  
+    });
 });
 
 // 下一步按钮逻辑
