@@ -2710,7 +2710,7 @@ async function processWork(work) {
     // 创建按钮
     const qrButton = document.createElement('button');
     qrButton.textContent = work.distribution_status === 1 ? '关闭分成' : '开启分成';
-    qrButton.style.backgroundColor = work.distribution_status === 1 ? '#34c759' : '#5a5a5a';
+    qrButton.style.backgroundColor = work.distribution_status === 1 ? '#5a5a5a' : '#34c759';
     qrButton.style.color = '#fff';
     qrButton.style.border = 'none';
     qrButton.style.padding = '5px 10px';
@@ -2719,7 +2719,7 @@ async function processWork(work) {
 
     const toggleButton = document.createElement('button');
     toggleButton.textContent = work.author_status === 1 ? '下架' : '上架';
-    toggleButton.style.backgroundColor = work.author_status === 1 ? '#34c759' : '#5a5a5a';
+    toggleButton.style.backgroundColor = work.author_status === 1 ? '#5a5a5a' : '#34c759';
     toggleButton.style.color = '#fff';
     toggleButton.style.border = 'none';
     toggleButton.style.padding = '5px 10px';
@@ -2807,7 +2807,7 @@ async function processWork(work) {
 
                     if (response?.success) {
                         qrButton.textContent = newStatus === 1 ? '关闭分成' : '开启分成';
-                        qrButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
+                        qrButton.style.backgroundColor = newStatus === 1 ? '#5a5a5a' : '#34c759';
                         //confirmDialog('分成状态切换成功！', null, true);
                     } else {
                         confirmDialog(`分成状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
@@ -2828,7 +2828,7 @@ async function processWork(work) {
 
                     if (response?.success) {
                         toggleButton.textContent = newStatus === 1 ? '下架' : '上架';
-                        toggleButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
+                        toggleButton.style.backgroundColor = newStatus === 1 ? '#5a5a5a' : '#34c759';
                         //confirmDialog('上下架状态切换成功！', null, true);
                     } else {
                         confirmDialog(`上下架状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
