@@ -765,6 +765,7 @@ async function uploadSingleImage(file) {
 
 // #region 公共组件/函数
 //UUID v4版全球每秒生成10的9次方个UUID，持续生成30亿年，碰撞的概率仍然接近0，远远小于2的122次方的的uuid的理论总数
+const conf_workflow_dir = ".../../config/json/workflow"
 function generateUUIDv4() {
     const array = new Uint8Array(16);
     crypto.getRandomValues(array);
@@ -2483,7 +2484,7 @@ async function loadWorks() {
         emptyContent.className = 'empty-content';
         emptyContent.innerHTML = `
             <p style="color: #888; font-size: 0.85rem; text-align: center;">
-                这里显示当前管理的作品列表，暂时没有任何内容。
+                此处显示可管理的作品列表。
             </p>
         `;
         workManagementContent.appendChild(emptyContent);
@@ -2566,7 +2567,7 @@ async function loadWorks() {
                         if (response?.success) {
                             qrButton.textContent = newStatus === 1 ? '关闭分成' : '开启分成';
                             qrButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
-                            confirmDialog('分成状态切换成功！', null, true);
+                            //confirmDialog('分成状态切换成功！', null, true);
                         } else {
                             confirmDialog(`分成状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
                         }
@@ -2597,7 +2598,7 @@ async function loadWorks() {
                         if (response?.success) {
                             toggleButton.textContent = newStatus === 1 ? '下架' : '上架';
                             toggleButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
-                            confirmDialog('上下架状态切换成功！', null, true);
+                            //confirmDialog('上下架状态切换成功！', null, true);
                         } else {
                             confirmDialog(`上下架状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
                         }

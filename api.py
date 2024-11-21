@@ -46,8 +46,8 @@ END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts"
 END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
 END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
-END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleDistributionStatus"
-END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleAuthorStatus"
+END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus"
+END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -756,7 +756,7 @@ async def toggleAuthor(req):
         jsonData["token"] = token
         jsonData["user_id"] = user_id
         async with session.post(
-            BASE_URL + END_POINT_URL_FOR_PRODUCT_3, json=jsonData
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_4, json=jsonData
         ) as response:
             res_js = await response.json()
             data = res_js.get("data", {})
@@ -771,7 +771,7 @@ async def toggleDistribution(req):
         jsonData["token"] = token
         jsonData["user_id"] = user_id
         async with session.post(
-            BASE_URL + END_POINT_URL_FOR_PRODUCT_3, json=jsonData
+            BASE_URL + END_POINT_URL_FOR_PRODUCT_5, json=jsonData
         ) as response:
             res_js = await response.json()
             data = res_js.get("data", {})
