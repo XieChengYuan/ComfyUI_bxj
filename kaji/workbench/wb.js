@@ -520,7 +520,8 @@ const END_POINT_URL1 = "/kaji-upload-file/uploadProduct"                 //上�
 const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";             //删除作品
 const END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus";        //切换上下架
 const END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus";  //删除分成
-
+const END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits";                   //文件是否存在
+const END_POINT_DELETE_FILE = "/plugin/deleteFiles";                     //删除文件        
 //临时测试数据
 const TEST_UID = "66c981879d9f915ad268680a"
 // 动态处理 HTTP 和 WebSocket 请求
@@ -595,71 +596,60 @@ function connectWebSocket(endpoint, data) {
     return ws;
 }
 
+//请求获取系统中所有节点信息及其可用参数
+async function checkFileIsExits(data) {
+    const res = await request(END_POINT_FILE_IS_EXITS, data);
+    console.log('检查文件是否存在: ', res);
+    return res;
+}
 
+//请求删除文件
+async function deleteFiles(data) {
+    const res = await request(END_POINT_DELETE_FILE, data);
+    console.log('删除目标文件: ', res);
+    return res;
+}
 
 //请求获取系统中所有节点信息及其可用参数
 async function getObjectInfo() {
     const res = await request("/object_info", null, 'GET');
-    if (res) {
-        console.log('请求 Comfyui 获取的object_info: ', res);
-        return res;
-    } else {
-        console.error('请求 Comfyui object_info信息失败: ', res);
-    }
+    console.log('请求 Comfyui 获取的object_info: ', res);
+    return res;
 }
 
 //请求获取所有作品
 async function getProduct(data) {
     const res = await request(END_POINT_URL_FOR_PRODUCT_1, data);
-    if (res?.data?._id) {
-        console.log('请求获取作品: ', res.data);
-    } else {
-        console.error('请求获取作品失败: ', res);
-    }
+    console.log('请求获取作品: ', res.data);
+    return res;
 }
 
 //请求删除作品
 async function deleteProduct(data) {
     const res = await request(END_POINT_URL_FOR_PRODUCT_3, data);
-    if (res) {
-        console.log('请求删除作品 ', res);
-        return res;
-    } else {
-        console.error('请求删除作品失败: ', res);
-    }
+    console.log('请求删除作品 ', res);
+    return res;
 }
 
 //请求发布作品
 async function uploadProduct(data) {
     const res = await request(END_POINT_URL1, data);
-    if (res) {
-        return res;
-        console.log('请求发布作品 ', res.data);
-    } else {
-        console.error('请求发布作品失败: ', res);
-    }
+    console.log('请求发布作品 ', res.data);
+    return res;
 }
 
 //请求上下架
 async function toggleAuthor(data) {
     const res = await request(END_POINT_URL_FOR_PRODUCT_4, data);
-    if (res) {
-        console.log('请求切换上下架状态 ', res);
-        return res;
-    } else {
-        console.error('请求切换上下架状态失败: ', res);
-    }
+    console.log('请求切换上下架状态 ', res);
+    return res;
 }
 
 //请求切换分成
 async function toggleDistribution(data) {
     const res = await request(END_POINT_URL_FOR_PRODUCT_5, data);
-    if (res) {
-        console.log('请求切换分成状态 ', res);
-        return res;
-    } else {
-        console.error('请求切换分成状态失败: ', res);
-    }
+    console.log('请求切换分成状态 ', res);
+    return res;
 }
 
 //请求建立websocket连接
@@ -712,23 +702,15 @@ async function postPrompt(output) {
         "workflow": workflow,
     }
     const res = await request("/prompt", data, 'POST');
-    if (res) {
-        console.log('请求 Comfyui 生图: ', res);
-        return res;
-    } else {
-        console.error('请求 Comfyui 生图失败: ', res);
-    }
+    console.log('请求 Comfyui 生图: ', res);
+    return res;
 }
 
 //预览生成结果
 async function getView(data) {
     const res = await request("/view", data, 'GET');
-    if (res) {
-        console.log('请求 Comfyui view: ', res.data);
-        return res;
-    } else {
-        console.error('请求 Comfyui view信息失败: ', res);
-    }
+    console.log('请求 Comfyui view: ', res.data);
+    return res;
 }
 
 
@@ -766,6 +748,7 @@ async function uploadSingleImage(file) {
 // #region 公共组件/函数
 //UUID v4版全球每秒生成10的9次方个UUID，持续生成30亿年，碰撞的概率仍然接近0，远远小于2的122次方的的uuid的理论总数
 const conf_workflow_dir = ".../../config/json/workflow"
+// 工具函数：检查本地文件是否存在
 function generateUUIDv4() {
     const array = new Uint8Array(16);
     crypto.getRandomValues(array);
@@ -2472,8 +2455,333 @@ workManagementContent.innerHTML = `
     <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">作品管理</h3>
 `;
 
+// 检查workflow文件是否存在
+async function checkWorkflowFile(work) {
+    try {
+        // 构造请求数据，传递 uniqueid 对应的文件路径
+        const filePath = `custom_nodes/ComfyUI_bxj/config/json/workflow/${work.uniqueid}.json`;
+        const data = { file_path: filePath };
+
+        // 调用检查文件接口
+        const response = await checkFileIsExits(data);
+
+        // 返回文件是否存在的结果
+        return response?.fileExists || false;
+    } catch (error) {
+        console.error('检查文件是否存在时出错：', error);
+        return false;
+    }
+}
+// 处理单个作品的函数
+async function processWork(work) {
+    console.log(work);
+
+    // 检查本地文件是否存在
+    const fileExists = await checkWorkflowFile(work);
+
+    const workCard = document.createElement('div');
+    workCard.className = 'work-card';
+    workCard.style.display = 'flex';
+    workCard.style.alignItems = 'center';
+    workCard.style.margin = '20px auto';
+    workCard.style.padding = '15px';
+    workCard.style.backgroundColor = '#2e2e2e';
+    workCard.style.borderRadius = '8px';
+    workCard.style.width = '92%';
+    workCard.style.transition = 'transform 0.3s, box-shadow 0.3s';
+
+    workCard.onmouseover = () => {
+        workCard.style.transform = 'scale(1.01)';
+        workCard.style.boxShadow = '0 4px 15px rgba(0, 255, 0, 0.5)';
+    };
+    workCard.onmouseout = () => {
+        workCard.style.transform = 'scale(1)';
+        workCard.style.boxShadow = 'none';
+    };
+
+    const img = document.createElement('img');
+    img.src = work.media_urls[0]?.url_temp || 'https://via.placeholder.com/150x100'; // 默认图片
+    img.alt = work.title;
+    img.style.width = '150px';
+    img.style.height = '150px';
+    img.style.objectFit = 'cover';
+    img.style.borderRadius = '8px';
+    img.style.marginRight = '20px';
+
+    const workInfoWrapper = document.createElement('div');
+    workInfoWrapper.style.display = 'flex';
+    workInfoWrapper.style.flexDirection = 'column';
+    workInfoWrapper.style.justifyContent = 'center';
+    workInfoWrapper.style.flex = '1';
+
+    const title = document.createElement('h4');
+    title.textContent = work.title;
+    title.style.color = '#fff';
+    title.style.marginBottom = '5px';
+
+    const date = document.createElement('p');
+    date.textContent = `发布时间：${formatDate(work.publish_date)}`;
+    date.style.color = '#888';
+    date.style.fontSize = '0.85rem';
+    date.style.marginBottom = '0px';
+
+    const users = document.createElement('p');
+    users.textContent = `使用人数：${work.usage || 0}`;
+    users.style.color = '#888';
+    users.style.fontSize = '0.85rem';
+    users.style.marginBottom = '10px';
+
+    const buttons = document.createElement('div');
+    buttons.style.display = 'flex';
+    buttons.style.justifyContent = 'flex-end';
+    buttons.style.gap = '10px';
+
+    // 创建按钮
+    const qrButton = document.createElement('button');
+    qrButton.textContent = work.distribution_status === 1 ? '关闭分成' : '开启分成';
+    qrButton.style.backgroundColor = work.distribution_status === 1 ? '#34c759' : '#5a5a5a';
+    qrButton.style.color = '#fff';
+    qrButton.style.border = 'none';
+    qrButton.style.padding = '5px 10px';
+    qrButton.style.borderRadius = '5px';
+    qrButton.style.cursor = 'pointer';
+
+    const toggleButton = document.createElement('button');
+    toggleButton.textContent = work.author_status === 1 ? '下架' : '上架';
+    toggleButton.style.backgroundColor = work.author_status === 1 ? '#34c759' : '#5a5a5a';
+    toggleButton.style.color = '#fff';
+    toggleButton.style.border = 'none';
+    toggleButton.style.padding = '5px 10px';
+    toggleButton.style.borderRadius = '5px';
+    toggleButton.style.cursor = 'pointer';
+
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = '删除';
+    deleteButton.style.backgroundColor = '#5a5a5a';
+    deleteButton.style.color = '#fff';
+    deleteButton.style.border = 'none';
+    deleteButton.style.padding = '5px 10px';
+    deleteButton.style.borderRadius = '5px';
+    deleteButton.style.cursor = 'pointer';
+
+    const modifyButton = document.createElement('button');
+    modifyButton.textContent = '修改';
+    modifyButton.style.backgroundColor = '#34c759';
+    modifyButton.style.color = '#fff';
+    modifyButton.style.border = 'none';
+    modifyButton.style.padding = '5px 10px';
+    modifyButton.style.borderRadius = '5px';
+    modifyButton.style.cursor = 'pointer';
+
+    // 根据文件是否存在调整逻辑
+    if (!fileExists) {
+        // 文件不存在，添加“此作品无本地工作流”按钮
+        const noWorkflowButton = document.createElement('button');
+        noWorkflowButton.textContent = '此作品无本地工作流';
+        noWorkflowButton.style.backgroundColor = '#5a5a5a';
+        noWorkflowButton.style.color = '#fff';
+        noWorkflowButton.style.border = 'none';
+        noWorkflowButton.style.padding = '5px 10px';
+        noWorkflowButton.style.borderRadius = '5px';
+        noWorkflowButton.style.cursor = 'pointer';
+        noWorkflowButton.style.border = '2px solid #34c759';
+
+        noWorkflowButton.onclick = () =>
+            confirmDialog(`确认删除${work.title}吗？`, async () => {
+                try {
+                    const response = await deleteProduct({ product_id: work._id });
+                    if (response?.success) {
+                        workCard.remove();
+                        confirmDialog('删除成功！', null, true);
+                    } else {
+                        confirmDialog('删除失败，请重试！', null, true);
+                    }
+                } catch (error) {
+                    console.error('删除作品时出错：', error);
+                    confirmDialog('删除作品时出错，请稍后重试！', null, true);
+                }
+            });
+
+        addHoverEffect(noWorkflowButton);
+        buttons.appendChild(noWorkflowButton);
+
+        // 其他按钮点击时也弹出删除确认框
+        [qrButton, toggleButton, deleteButton, modifyButton].forEach((button) => {
+            button.onclick = () =>
+                confirmDialog(`此作品无本地工作流，确认删除${work.title}吗？`, async () => {
+                    try {
+                        const response = await deleteProduct({ product_id: work._id });
+                        if (response?.success) {
+                            workCard.remove();
+                            confirmDialog('删除成功！', null, true);
+                        } else {
+                            confirmDialog('删除失败，请重试！', null, true);
+                        }
+                    } catch (error) {
+                        console.error('删除作品时出错：', error);
+                        confirmDialog('删除作品时出错，请稍后重试！', null, true);
+                    }
+                });
+            addHoverEffect(button);
+            buttons.appendChild(button);
+        });
+    } else {
+        // 文件存在，正常处理按钮事件
+        // 分成按钮点击事件
+        qrButton.onclick = () =>
+            confirmDialog(`确认${qrButton.textContent}吗？`, async () => {
+                try {
+                    const newStatus = qrButton.textContent === '开启分成' ? 1 : 0;
+                    const response = await toggleDistribution({ product_id: work._id, distribution_status: newStatus });
+
+                    if (response?.success) {
+                        qrButton.textContent = newStatus === 1 ? '关闭分成' : '开启分成';
+                        qrButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
+                        //confirmDialog('分成状态切换成功！', null, true);
+                    } else {
+                        confirmDialog(`分成状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
+                    }
+                } catch (error) {
+                    console.error('分成状态切换时出错：', error);
+                    confirmDialog('分成状态切换时出错，请稍后重试！', null, true);
+                }
+            });
+        addHoverEffect(qrButton);
+
+        // 上下架按钮点击事件
+        toggleButton.onclick = () =>
+            confirmDialog(`确认${toggleButton.textContent}吗？`, async () => {
+                try {
+                    const newStatus = toggleButton.textContent === '上架' ? 1 : 0;
+                    const response = await toggleAuthor({ product_id: work._id, author_status: newStatus });
+
+                    if (response?.success) {
+                        toggleButton.textContent = newStatus === 1 ? '下架' : '上架';
+                        toggleButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
+                        //confirmDialog('上下架状态切换成功！', null, true);
+                    } else {
+                        confirmDialog(`上下架状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
+                    }
+                } catch (error) {
+                    console.error('上下架状态切换时出错：', error);
+                    confirmDialog('上下架状态切换时出错，请稍后重试！', null, true);
+                }
+            });
+        addHoverEffect(toggleButton);
+
+        // 删除按钮点击事件
+        deleteButton.onclick = () =>
+            confirmDialog(`确认删除${work.title}吗？`, async () => {
+                try {
+                    // 构造删除本地文件的请求数据
+                    const filePath1 = `custom_nodes/ComfyUI_bxj/config/json/workflow/${work.uniqueid}.json`;
+                    const filePath2 = `custom_nodes/ComfyUI_bxj/config/json/output/${work.uniqueid}.json`;
+                    const deleteFileData1 = { file_path: filePath1 };
+                    const deleteFileData2 = { file_path: filePath2 };
+
+                    // 同时发送删除云端作品和删除本地文件的请求
+                    const [deleteProductResponse, deleteFileResponse1,deleteFileResponse2] = await Promise.all([
+                        deleteProduct({ product_id: work._id }),
+                        deleteFiles(deleteFileData1),
+                        deleteFiles(deleteFileData2)
+                    ]);
+
+                    // 检查删除结果
+                    const productDeleted = deleteProductResponse?.success;
+                    const fileDeleted = deleteFileResponse1?.success && deleteFileResponse2?.success
+
+                    if (productDeleted && fileDeleted) {
+                        // 云端和本地都成功
+                        workCard.remove();
+                        confirmDialog('作品和本地文件删除成功！', null, true);
+                    } else if (!productDeleted && !fileDeleted) {
+                        // 两个都失败
+                        confirmDialog('删除失败：云端作品和本地文件均未删除成功，请重试！', null, true);
+                    } else if (!productDeleted) {
+                        // 仅云端删除失败
+                        confirmDialog('删除失败：云端作品未能删除，请重试！', null, true);
+                    } else if (!fileDeleted) {
+                        // 仅本地文件删除失败
+                        confirmDialog('删除失败：本地文件未能删除，请重试！', null, true);
+                    }
+                } catch (error) {
+                    console.error('删除作品或本地文件时出错：', error);
+                    confirmDialog('删除作品或本地文件时出错，请稍后重试！', null, true);
+                }
+            });
+        addHoverEffect(deleteButton);
+
+        // 修改按钮点击事件
+        // 修改按钮点击事件
+        modifyButton.onclick = async () => {
+            // 显示加载中对话框
+            showLoading("加载中...");
+
+            try {
+                // 获取工作流数据
+                const gp = await app.graphToPrompt();
+                const wkf = JSON.stringify(gp.workflow)
+
+                if (wkf) {
+                    // 加载工作流到应用中
+                    await app.loadGraphData(JSON.parse(wkf));
+
+                    // 存储关键数据到 sessionStorage
+                    const temp_work = {
+                        title: work.title,
+                        description: work.description,
+                        distribution_status: work.distribution_status,
+                        price: work.price,
+                        free_times: work.free_times,
+                        media_urls: work.media_urls
+                    };
+
+                    sessionStorage.setItem('temp_work', JSON.stringify(temp_work));
+                } else {
+                    confirmDialog(`无法获取工作流数据：${response?.errMsg || '未知错误'}`, null, true);
+                }
+            } catch (error) {
+                console.error('获取工作流时出错：', error);
+                confirmDialog('获取工作流时出错，请稍后重试！', null, true);
+            } finally {
+                // 关闭加载中对话框
+                document.body.removeChild(overlay);
+                hideLoading();
+            }
+        };
+        addHoverEffect(modifyButton);
+
+        // 将按钮添加到按钮容器
+        buttons.appendChild(qrButton);
+        buttons.appendChild(toggleButton);
+        buttons.appendChild(deleteButton);
+        buttons.appendChild(modifyButton);
+    }
+
+    workInfoWrapper.appendChild(title);
+    workInfoWrapper.appendChild(date);
+    workInfoWrapper.appendChild(users);
+    workInfoWrapper.appendChild(buttons);
+
+    workCard.appendChild(img);
+    workCard.appendChild(workInfoWrapper);
+
+    workManagementContent.appendChild(workCard);
+}
+
+async function processWorks(works) {
+    for (const work of works) {
+        await processWork(work);
+    }
+}
+
 // 获取数据并生成内容
 async function loadWorks() {
+    // 清空之前的内容
+    workManagementContent.innerHTML = `
+        <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">作品管理</h3>
+    `;
+
     const data = { user_id: user_id };
     const res = await request(END_POINT_URL_FOR_PRODUCT_1, data);
     console.log('收到的作品数据: ', res);
@@ -2489,185 +2797,8 @@ async function loadWorks() {
         `;
         workManagementContent.appendChild(emptyContent);
     } else {
-        works.forEach((work) => {
-            console.log(work)
-            const workCard = document.createElement('div');
-            workCard.className = 'work-card';
-            workCard.style.display = 'flex';
-            workCard.style.alignItems = 'center';
-            workCard.style.margin = '20px auto';
-            workCard.style.padding = '15px';
-            workCard.style.backgroundColor = '#2e2e2e';
-            workCard.style.borderRadius = '8px';
-            workCard.style.width = '92%';
-            workCard.style.transition = 'transform 0.3s, box-shadow 0.3s';
-
-            workCard.onmouseover = () => {
-                workCard.style.transform = 'scale(1.01)';
-                workCard.style.boxShadow = '0 4px 15px rgba(0, 255, 0, 0.5)';
-            };
-            workCard.onmouseout = () => {
-                workCard.style.transform = 'scale(1)';
-                workCard.style.boxShadow = 'none';
-            };
-
-            const img = document.createElement('img');
-            img.src = work.media_urls[0]?.url_temp || 'https://via.placeholder.com/150x100'; // 默认图片
-            img.alt = work.title;
-            img.style.width = '150px';
-            img.style.height = '150px';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '8px';
-            img.style.marginRight = '20px';
-
-            const workInfoWrapper = document.createElement('div');
-            workInfoWrapper.style.display = 'flex';
-            workInfoWrapper.style.flexDirection = 'column';
-            workInfoWrapper.style.justifyContent = 'center';
-            workInfoWrapper.style.flex = '1';
-
-            const title = document.createElement('h4');
-            title.textContent = work.title;
-            title.style.color = '#fff';
-            title.style.marginBottom = '5px';
-
-            const date = document.createElement('p');
-            date.textContent = `发布时间：${formatDate(work.publish_date)}`;
-            date.style.color = '#888';
-            date.style.fontSize = '0.85rem';
-            date.style.marginBottom = '0px';
-
-            const users = document.createElement('p');
-            users.textContent = `使用人数：${work.usage || 0}`;
-            users.style.color = '#888';
-            users.style.fontSize = '0.85rem';
-            users.style.marginBottom = '10px';
-
-            const buttons = document.createElement('div');
-            buttons.style.display = 'flex';
-            buttons.style.justifyContent = 'flex-end';
-            buttons.style.gap = '10px';
-
-            const qrButton = document.createElement('button');
-            qrButton.textContent = work.distribution_status === 1 ? '关闭分成' : '开启分成';
-            qrButton.style.backgroundColor = work.distribution_status === 1 ? '#34c759' : '#5a5a5a';
-            qrButton.style.color = '#fff';
-            qrButton.style.border = 'none';
-            qrButton.style.padding = '5px 10px';
-            qrButton.style.borderRadius = '5px';
-            qrButton.style.cursor = 'pointer';
-
-            // 分成按钮点击事件
-            qrButton.onclick = () =>
-                confirmDialog(`确认${qrButton.textContent}吗？`, async () => {
-                    try {
-                        const newStatus = qrButton.textContent === '开启分成' ? 1 : 0;
-                        const response = await toggleDistribution({ product_id: work._id, distribution_status: newStatus });
-
-                        if (response?.success) {
-                            qrButton.textContent = newStatus === 1 ? '关闭分成' : '开启分成';
-                            qrButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
-                            //confirmDialog('分成状态切换成功！', null, true);
-                        } else {
-                            confirmDialog(`分成状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
-                        }
-                    } catch (error) {
-                        console.error('分成状态切换时出错：', error);
-                        confirmDialog('分成状态切换时出错，请稍后重试！', null, true);
-                    }
-                });
-
-            addHoverEffect(qrButton);
-
-            const toggleButton = document.createElement('button');
-            toggleButton.textContent = work.author_status === 1 ? '下架' : '上架';
-            toggleButton.style.backgroundColor = work.author_status === 1 ? '#34c759' : '#5a5a5a';
-            toggleButton.style.color = '#fff';
-            toggleButton.style.border = 'none';
-            toggleButton.style.padding = '5px 10px';
-            toggleButton.style.borderRadius = '5px';
-            toggleButton.style.cursor = 'pointer';
-
-            // 上下架按钮点击事件
-            toggleButton.onclick = () =>
-                confirmDialog(`确认${toggleButton.textContent}吗？`, async () => {
-                    try {
-                        const newStatus = toggleButton.textContent === '上架' ? 1 : 0;
-                        const response = await toggleAuthor({ product_id: work._id, author_status: newStatus });
-
-                        if (response?.success) {
-                            toggleButton.textContent = newStatus === 1 ? '下架' : '上架';
-                            toggleButton.style.backgroundColor = newStatus === 1 ? '#34c759' : '#5a5a5a';
-                            //confirmDialog('上下架状态切换成功！', null, true);
-                        } else {
-                            confirmDialog(`上下架状态切换失败：${response?.errMsg || '未知错误'}`, null, true);
-                        }
-                    } catch (error) {
-                        console.error('上下架状态切换时出错：', error);
-                        confirmDialog('上下架状态切换时出错，请稍后重试！', null, true);
-                    }
-                });
-            addHoverEffect(toggleButton);
-
-            const deleteButton = document.createElement('button');
-            deleteButton.textContent = '删除';
-            deleteButton.style.backgroundColor = '#5a5a5a';
-            deleteButton.style.color = '#fff';
-            deleteButton.style.border = 'none';
-            deleteButton.style.padding = '5px 10px';
-            deleteButton.style.borderRadius = '5px';
-            deleteButton.style.cursor = 'pointer';
-
-            deleteButton.onclick = () =>
-                confirmDialog(`确认删除${work.title}吗？`, async () => {
-                    try {
-                        const response = await deleteProduct({ product_id: work._id });
-                        console.log(response)
-                        if (response?.success) {
-                            workCard.remove();
-                            confirmDialog('删除成功！', null, true);
-                        } else {
-                            confirmDialog('删除失败，请重试！', null, true);
-                        }
-                    } catch (error) {
-                        console.error('删除作品时出错：', error);
-                        confirmDialog('删除作品时出错，请稍后重试！', null, true);
-                    }
-                });
-
-            addHoverEffect(deleteButton);
-
-            const modifyButton = document.createElement('button');
-            modifyButton.textContent = '修改';
-            modifyButton.style.backgroundColor = '#34c759';
-            modifyButton.style.color = '#fff';
-            modifyButton.style.border = 'none';
-            modifyButton.style.padding = '5px 10px';
-            modifyButton.style.borderRadius = '5px';
-            modifyButton.style.cursor = 'pointer';
-
-            modifyButton.onclick = () =>
-                confirmDialog(`确认修改${work.title}吗？`, () => {
-                    alert(`${work.title} 已修改`);
-                });
-
-            addHoverEffect(modifyButton);
-
-            buttons.appendChild(qrButton);
-            buttons.appendChild(toggleButton);
-            buttons.appendChild(deleteButton);
-            buttons.appendChild(modifyButton);
-
-            workInfoWrapper.appendChild(title);
-            workInfoWrapper.appendChild(date);
-            workInfoWrapper.appendChild(users);
-            workInfoWrapper.appendChild(buttons);
-
-            workCard.appendChild(img);
-            workCard.appendChild(workInfoWrapper);
-
-            workManagementContent.appendChild(workCard);
-        });
+        // 开始处理作品列表
+        await processWorks(works);
     }
 
     const noMoreText = document.createElement('p');
@@ -2677,11 +2808,15 @@ async function loadWorks() {
     noMoreText.style.marginTop = '20px';
 
     workManagementContent.appendChild(noMoreText);
-    workManagementContainer.appendChild(workManagementContent);
+
+    // 将内容添加到容器（如果尚未添加）
+    if (!workManagementContainer.contains(workManagementContent)) {
+        workManagementContainer.appendChild(workManagementContent);
+    }
 }
 
 // 加载作品
-loadWorks();
+await loadWorks();
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容
@@ -2749,7 +2884,7 @@ function updateFooterForWorkManagement() {
 }
 
 // 作品管理视图切换逻辑
-workManagementTab.addEventListener('click', () => {
+workManagementTab.addEventListener('click', async () => {
     // 移除其他tab的active状态，给当前tab添加active状态
     appParamsTab.classList.remove('active');
     completeWrapTab.classList.remove('active');
@@ -2762,6 +2897,8 @@ workManagementTab.addEventListener('click', () => {
 
     // 更新底部按钮显示
     updateFooterButtons();
+    // 重新加载作品数据
+    await loadWorks();
 });
 
 // 完成封装tab切换逻辑

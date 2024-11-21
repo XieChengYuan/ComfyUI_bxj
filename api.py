@@ -48,6 +48,8 @@ END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
 END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
 END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus"
 END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus"
+END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits"  
+END_POINT_DELETE_FILE = "/plugin/deleteFiles";                   
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -414,7 +416,7 @@ async def send_heartbeat(websocket):
 
             # 获取所有工作流id
             workflow_path = (
-                find_project_root() + "custom_nodes/ComfyUI_Bxj/config/json/workflow"
+                find_project_root() + "custom_nodes/ComfyUI_bxj/config/json/workflow"
             )
             uniqueids = get_filenames(workflow_path)
 
@@ -778,6 +780,53 @@ async def toggleDistribution(req):
             print("res_js", res_js)
 
             return web.json_response(res_js)
+        
+@server.PromptServer.instance.routes.post(END_POINT_FILE_IS_EXITS)
+async def checkFileIsExits(req):
+    # 获取请求数据
+    jsonData = await req.json()
+
+    # 获取文件路径参数
+    file_path = jsonData.get("file_path")
+    if not file_path:
+        return web.json_response({"success": False, "errMsg": "文件路径不能为空"})
+    abs_file_path = os.path.join(
+            find_project_root(),file_path
+        )
+    # 检查文件是否存在
+    file_exists = os.path.exists(abs_file_path)
+
+    # 返回结果
+    return web.json_response({
+        "success": True,
+        "fileExists": file_exists
+    })
+
+@server.PromptServer.instance.routes.post(END_POINT_DELETE_FILE)
+async def deleteFile(req):
+    # 获取请求数据
+    jsonData = await req.json()
+
+    # 获取文件路径参数
+    file_path = jsonData.get("file_path")
+    if not file_path:
+        return web.json_response({"success": False, "errMsg": "文件路径不能为空"})
+
+    # 构建绝对文件路径
+    abs_file_path = os.path.abspath(os.path.join(find_project_root(), file_path))
+
+    # 检查文件是否存在
+    if os.path.exists(abs_file_path):
+        try:
+            # 尝试删除文件
+            os.remove(abs_file_path)
+            return web.json_response({"success": True, "message": "文件删除成功"})
+        except Exception as e:
+            # 处理删除文件时的异常
+            return web.json_response({"success": False, "errMsg": f"删除文件时出错：{str(e)}"})
+    else:
+        return web.json_response({"success": False, "errMsg": "文件不存在"})
+
 # 前端直传有跨域问题，暂时不知道咋解决，先传给python端。
 # 前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
 @server.PromptServer.instance.routes.post(END_POINT_URL3)
@@ -947,7 +996,7 @@ async def kaji_r(req):
 
 def save_workflow(uniqueid, data):
     base_path = os.path.join(
-        find_project_root(), "custom_nodes/ComfyUI_Bxj/config/json/"
+        find_project_root(), "custom_nodes/ComfyUI_bxj/config/json/"
     )
 
     # 检查并创建主目录
@@ -1366,7 +1415,7 @@ def get_workflow(uniqueid, path="json/workflow/"):
 
 
 def read_json_from_file(name, path="json/", type_1="json"):
-    base_url = find_project_root() + "custom_nodes/ComfyUI_Bxj/config/" + path
+    base_url = find_project_root() + "custom_nodes/ComfyUI_bxj/config/" + path
     if not os.path.exists(base_url + name):
         return None
     with open(base_url + name, "r") as f:
