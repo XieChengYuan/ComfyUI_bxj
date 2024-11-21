@@ -521,7 +521,8 @@ const END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct";             //删�
 const END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus";        //切换上下架
 const END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus";  //删除分成
 const END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits";                   //文件是否存在
-const END_POINT_DELETE_FILE = "/plugin/deleteFiles";                     //删除文件        
+const END_POINT_DELETE_FILE = "/plugin/deleteFiles";                     //删除文件
+const END_POINT_GET_WORKFLOW = "/plugin/getWorkflow";                    //获取工作流数据        
 //临时测试数据
 const TEST_UID = "66c981879d9f915ad268680a"
 // 动态处理 HTTP 和 WebSocket 请求
@@ -607,6 +608,13 @@ async function checkFileIsExits(data) {
 async function deleteFiles(data) {
     const res = await request(END_POINT_DELETE_FILE, data);
     console.log('删除目标文件: ', res);
+    return res;
+}
+
+//获取工作流数据
+async function getWorkflow(data) {
+    const res = await request(END_POINT_GET_WORKFLOW, data);
+    console.log('获取作品工作流数据: ', res);
     return res;
 }
 
@@ -2719,12 +2727,11 @@ async function processWork(work) {
 
             try {
                 // 获取工作流数据
-                const gp = await app.graphToPrompt();
-                const wkf = JSON.stringify(gp.workflow)
-
-                if (wkf) {
+                const response = await getWorkflow({ workflow_id: work.uniqueid });
+                if (response?.success) {
+                    const workflow = response.workflow;
                     // 加载工作流到应用中
-                    await app.loadGraphData(JSON.parse(wkf));
+                    await app.loadGraphData(workflow);
 
                     // 存储关键数据到 sessionStorage
                     const temp_work = {
@@ -2744,9 +2751,11 @@ async function processWork(work) {
                 console.error('获取工作流时出错：', error);
                 confirmDialog('获取工作流时出错，请稍后重试！', null, true);
             } finally {
-                // 关闭加载中对话框
-                document.body.removeChild(overlay);
                 hideLoading();
+                pluginUI.classList.remove('show');
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 300);
             }
         };
         addHoverEffect(modifyButton);

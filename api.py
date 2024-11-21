@@ -49,7 +49,8 @@ END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
 END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus"
 END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus"
 END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits"  
-END_POINT_DELETE_FILE = "/plugin/deleteFiles";                   
+END_POINT_DELETE_FILE = "/plugin/deleteFiles"  
+END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"                
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -800,6 +801,42 @@ async def checkFileIsExits(req):
     return web.json_response({
         "success": True,
         "fileExists": file_exists
+    })
+
+@server.PromptServer.instance.routes.post(END_POINT_GET_WORKFLOW)
+async def getWorkflowJson(req):
+    # 获取请求数据
+    jsonData = await req.json()
+
+    # 获取工作流ID参数
+    workflow_id = jsonData.get("workflow_id")
+    if not workflow_id:
+        return web.json_response({"success": False, "errMsg": "工作流ID不能为空"})
+
+    # 构建工作流文件的绝对路径
+    base_dir = os.path.abspath(os.path.join(find_project_root(), "custom_nodes", "ComfyUI_bxj", "config", "json", "workflow"))
+    abs_file_path = os.path.join(base_dir, f"{workflow_id}.json")
+
+    # 防止路径遍历攻击，确保文件在允许的目录下
+    abs_file_path = os.path.abspath(abs_file_path)
+    if not abs_file_path.startswith(base_dir):
+        return web.json_response({"success": False, "errMsg": "非法的文件路径"})
+
+    # 检查文件是否存在
+    if not os.path.exists(abs_file_path):
+        return web.json_response({"success": False, "errMsg": "工作流文件不存在"})
+
+    # 读取文件内容
+    try:
+        with open(abs_file_path, 'r', encoding='utf-8') as f:
+            workflow_data = json.load(f)
+    except Exception as e:
+        return web.json_response({"success": False, "errMsg": f"读取工作流文件时出错：{str(e)}"})
+
+    # 返回工作流数据
+    return web.json_response({
+        "success": True,
+        "workflow": workflow_data
     })
 
 @server.PromptServer.instance.routes.post(END_POINT_DELETE_FILE)
