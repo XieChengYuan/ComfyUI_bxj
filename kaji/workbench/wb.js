@@ -1120,8 +1120,6 @@ function publishOptionDialog(message, onNewPublish, onModifyPublish) {
 const userInputData = {}
 const formMetaData = {}
 
-//TODO 1.构建表单元数据同作品一块上传
-
 function createUserInputFormComponent(title, detail, inputField) {
     const userInputFormContainer = document.querySelector('.user-input-form-container');
 
@@ -1246,7 +1244,6 @@ function createUserInput(detail, title) {
     } else if (Array.isArray(detail) && Array.isArray(detail[0]) && detail[0].length > 0) {
         // 下拉框输入框
         userInput = document.createElement('select');
-
         // 添加选项
         detail[0].forEach(option => {
             const optionElement = document.createElement('option');
@@ -1293,7 +1290,11 @@ function createUserInput(detail, title) {
 
 // 设置用户输入框的样式
 function setUserInputStyle(userInput) {
-    userInput.style.width = '90%';
+    if (userInput.tagName.toLowerCase() === 'select') {
+        userInput.style.width = '97%'; // 下拉框得场点
+    } else {
+        userInput.style.width = '90%'; 
+    }
     userInput.style.padding = '10px';
     userInput.style.borderRadius = '6px';
     userInput.style.border = '1px solid #555';
@@ -2558,7 +2559,7 @@ addImageArea.addEventListener('click', selectImage);
 
 function iniP2() {
     tempWorkData = JSON.parse(sessionStorage.getItem('temp_work'));
-    console.log("hhhhhhhhhhhhhhhhh", tempWorkData)
+    console.log("修改作品数据tempWorkData", tempWorkData)
     //根据是否有修改数据初始化发布区域内容
     if (tempWorkData) {
         // 设置输入框的默认值
@@ -2639,8 +2640,6 @@ async function checkWorkflowFile(work) {
 }
 // 处理单个作品的函数
 async function processWork(work) {
-    console.log(work);
-
     // 检查本地文件是否存在
     const fileExists = await checkWorkflowFile(work);
 
