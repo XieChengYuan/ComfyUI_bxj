@@ -2442,7 +2442,7 @@ const selectImage = () => {
     fileInput.style.display = 'none';
 
     fileInput.addEventListener('change', (event) => {
-        if (tempWorkData) {
+        if (tempWorkData && !isModifyImage) {
             isModifyImage = true;
             selectedImages = []
         }
@@ -2599,8 +2599,8 @@ function iniP2() {
             updatePreviewText();
             updateRealTimeHeaderImage(); // 更新预览区域的头图显示
             updateCarouselControls(); // 更新轮播控制点
-            startAutoSlide();
         }
+        startAutoSlide();
     }
 
 }
