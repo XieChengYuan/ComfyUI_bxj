@@ -3066,7 +3066,9 @@ workManagementTab.addEventListener('click', async () => {
     // 更新底部按钮显示
     updateFooterButtons();
     // 重新加载作品数据
+    showLoading();
     await loadWorks();
+    hideLoading();
 });
 
 // 完成封装tab切换逻辑
