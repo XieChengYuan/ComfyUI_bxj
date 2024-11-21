@@ -3071,7 +3071,7 @@ workManagementTab.addEventListener('click', async () => {
 
 // 完成封装tab切换逻辑
 completeWrapTab.addEventListener('click', () => {
-    if (isExecutedComplete) {
+    if (!isExecutedComplete) {
         // 弹出确认对话框
         confirmDialog('请先完成作品生成测试', null, true);
         return;
