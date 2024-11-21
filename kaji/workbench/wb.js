@@ -2561,8 +2561,6 @@ function iniP2() {
     console.log("hhhhhhhhhhhhhhhhh", tempWorkData)
     //根据是否有修改数据初始化发布区域内容
     if (tempWorkData) {
-
-
         // 设置输入框的默认值
         productTitleInput.value = tempWorkData.title || '';
         productDesInput.value = tempWorkData.description || '';
@@ -3235,6 +3233,7 @@ async function publishProduct(isModify) {
             confirmDialog('作品发布成功！', () => {
                 // 删除 sessionStorage 中的 temp_work
                 sessionStorage.removeItem('temp_work');
+                //TODO:如果是修改删除旧的本地工作流文件
                 pluginUI.classList.remove('show'); // 关闭插件界面
                 setTimeout(() => {
                     overlay.style.display = 'none';
