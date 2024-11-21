@@ -782,6 +782,17 @@ const addHoverEffect = (button) => {
     button.onmouseout = () => button.style.transform = 'scale(1)';
 };
 
+function isModifyProduct() {
+    const tempWorkData = sessionStorage.getItem('temp_work');
+    if (tempWorkData) {
+        // 有值，表示正在修改作品
+        return true;
+    } else {
+        // 无值，表示新建作品
+        return false;
+    }
+}
+
 // 时间戳转换为可读日期格式
 const formatDate = (timestamp) => {
     const date = new Date(timestamp);
@@ -1293,7 +1304,7 @@ function setUserInputStyle(userInput) {
     if (userInput.tagName.toLowerCase() === 'select') {
         userInput.style.width = '97%'; // 下拉框得场点
     } else {
-        userInput.style.width = '90%'; 
+        userInput.style.width = '90%';
     }
     userInput.style.padding = '10px';
     userInput.style.borderRadius = '6px';
@@ -2322,7 +2333,7 @@ const updatePreviewText = () => {
 
 // 更新预览区的显示
 const updateThumbnailDisplay = () => {
-    if (selectedImages.length === 0) {
+    if (selectedImages.length === 0 || (!isModifyImage && isModifyProduct)) {
         thumbnailDisplayArea.style.backgroundImage = 'none';
         previewText.style.display = 'block';
         realTimeHeaderImage.style.backgroundImage = 'none';  // 同步更新作品头图区域
@@ -2351,15 +2362,11 @@ const updateThumbnailDisplay = () => {
 const updateRealTimeHeaderImage = () => {
     console.log("selectedImages.length", selectedImages.length)
     const realTimeHeaderImage = previewSection.querySelector('#real-time-header-image'); // 作品头图区域
-
-    console.log("selectedImages.length", selectedImages.length)
     if (selectedImages.length === 0) {
         // 如果没有图片，显示文本
         realTimeHeaderImage.textContent = '此处是作品头图区'; // 显示文本
         realTimeHeaderImage.style.backgroundImage = 'none'; // 不显示背景图片
     } else {
-        // 如果有图片，隐藏文本
-        console.log("wenbenneirong", realTimeHeaderImage.textContent)
         realTimeHeaderImage.textContent = ''; // 清空文本
         if (selectedImages.length === 1) {
             // 如果只有一张图片，显示该图片
@@ -2442,7 +2449,7 @@ const selectImage = () => {
     fileInput.style.display = 'none';
 
     fileInput.addEventListener('change', (event) => {
-        if (tempWorkData && !isModifyImage) {
+        if (isModifyProduct() && !isModifyImage) {
             isModifyImage = true;
             selectedImages = []
         }
@@ -2876,7 +2883,6 @@ async function processWork(work) {
         addHoverEffect(deleteButton);
 
         // 修改按钮点击事件
-        // 修改按钮点击事件
         modifyButton.onclick = async () => {
             // 显示加载中对话框
             showLoading("加载中...");
@@ -3080,7 +3086,6 @@ completeWrapTab.addEventListener('click', () => {
     }
     //重新拉取下修改作品的数据 
     iniP2()
-    console.log("tempWorkData作品发布：", tempWorkData)
     // 移除其他tab的active状态，给当前tab添加active状态
     completeWrapTab.classList.add('active');
     appParamsTab.classList.remove('active');
@@ -3155,15 +3160,20 @@ document.getElementById('prev-button').addEventListener('click', () => {
 });
 
 // 发布/更新作品
-document.getElementById('publish-button').addEventListener('click', () => {
-    // 弹出选择发布方式的对话框
-    publishOptionDialog('请选择发布方式：', async () => {
-        // 用户选择“发布为新作品”
-        await publishProduct(false); // false 表示不上传 work._id（新增）
-    }, async () => {
-        // 用户选择“仅修改作品发布”
-        await publishProduct(true); // true 表示上传 work._id（更新）
-    });
+document.getElementById('publish-button').addEventListener('click', async () => {
+    if (isModifyProduct()) {
+        // 弹出选择发布方式的对话框
+        publishOptionDialog('请选择发布方式：', async () => {
+            // 用户选择“发布为新作品”
+            await publishProduct(false); // false 表示不上传 work._id（新增）
+        }, async () => {
+            // 用户选择“仅修改作品发布”
+            await publishProduct(true); // true 表示上传 work._id（更新）
+        });
+    } else {
+        await publishProduct(false);
+    }
+
 });
 
 async function publishProduct(isModify) {
@@ -3176,7 +3186,7 @@ async function publishProduct(isModify) {
 
         // 上传所有图片，获取公网地址
         let mediaUrls;
-        if (isModifyImage) {
+        if (isModifyImage || !isModifyProduct()) {
             mediaUrls = await Promise.all(
                 selectedImages.map(async (base64Image, index) => {
                     try {
@@ -3196,7 +3206,6 @@ async function publishProduct(isModify) {
                 })
             );
         } else {
-            JSON.parse
             // 如果不需要修改图片，使用已有的图片数据
             mediaUrls = tempWorkData && tempWorkData.media_urls ? tempWorkData.media_urls : [];
         }
@@ -3234,6 +3243,7 @@ async function publishProduct(isModify) {
             confirmDialog('作品发布成功！', () => {
                 // 删除 sessionStorage 中的 temp_work
                 sessionStorage.removeItem('temp_work');
+                isModifyImage = false;
                 //TODO:如果是修改删除旧的本地工作流文件
                 pluginUI.classList.remove('show'); // 关闭插件界面
                 setTimeout(() => {
