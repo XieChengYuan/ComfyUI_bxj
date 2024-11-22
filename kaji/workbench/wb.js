@@ -2865,6 +2865,14 @@ async function processWork(work) {
                         // 云端和本地都成功
                         workCard.remove();
                         confirmDialog('作品和本地文件删除成功！', null, true);
+                        //删除作品移除缓存的修改状态
+                        // TODO:其余地方离开页面清空输入，添加作品内容填充校验
+                        if(isModifyProduct()){
+                            if(tempWorkData && tempWorkData._id === work._id){
+                                sessionStorage.removeItem('temp_work');
+                                console.log('已移除 sessionStorage 中的 temp_work');
+                            }
+                        }
                     } else if (!productDeleted && !fileDeleted) {
                         // 两个都失败
                         confirmDialog('删除失败：云端作品和本地文件均未删除成功，请重试！', null, true);
