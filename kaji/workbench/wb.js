@@ -2867,8 +2867,8 @@ async function processWork(work) {
                         confirmDialog('作品和本地文件删除成功！', null, true);
                         //删除作品移除缓存的修改状态
                         // TODO:其余地方离开页面清空输入，添加作品内容填充校验
-                        if(isModifyProduct()){
-                            if(tempWorkData && tempWorkData._id === work._id){
+                        if (isModifyProduct()) {
+                            if (tempWorkData && tempWorkData._id === work._id) {
                                 sessionStorage.removeItem('temp_work');
                                 console.log('已移除 sessionStorage 中的 temp_work');
                             }
@@ -3220,6 +3220,7 @@ async function publishProduct(isModify) {
         // 上传完成后打印结果
         console.log("所有图片上传完成，媒体 URL 数据：", mediaUrls);
 
+
         // 构造上传数据
         const uploadData = {
             title: productInputData['title'] || '',                         // 从用户输入中获取标题
@@ -3234,11 +3235,37 @@ async function publishProduct(isModify) {
             formMetaData: formMetaData,                                     // 表单结构
         };
 
+        // 校验输入内容
+        console.log("上传作品数据：", uploadData)
+        // 开始数据校验
+        if (!uploadData.images || uploadData.images.length === 0) {
+            confirmDialog('请添加作品头图', null, true);
+            return;
+        }
+
+        if (!uploadData.title.trim()) {
+            confirmDialog('请填写作品标题', null, true);
+            return;
+        }
+
+        if (!uploadData.description.trim()) {
+            confirmDialog('请填写作品描述', null, true);
+            return;
+        }
+
+        if (uploadData.price <= 0) {
+            confirmDialog('请设置价格', null, true);
+            return;
+        }
+
+        if (uploadData.free_times < 0 || uploadData.free_times > 3) {
+            confirmDialog('免费次数必须在0到3之间', null, true);
+            return;
+        }
+
         if (isModify && tempWorkData && tempWorkData._id) {
             uploadData.product_id = tempWorkData._id; // 上传 work._id，用于更新作品
         }
-
-        console.log('准备上传的作品数据: ', uploadData);
 
         // 调用上传接口
         const response = await uploadProduct(uploadData);
@@ -3267,6 +3294,8 @@ async function publishProduct(isModify) {
         console.error('发布作品过程中出错:', error);
         hideLoading(); // 隐藏加载框
         confirmDialog('发布作品时发生错误，请检查网络或稍后重试。', null, true);
+    }finally {
+        hideLoading(); 
     }
 }
 
