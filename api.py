@@ -48,9 +48,9 @@ END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
 END_POINT_URL_FOR_PRODUCT_3 = "/plugin/deleteProduct"
 END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus"
 END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus"
-END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits"  
-END_POINT_DELETE_FILE = "/plugin/deleteFiles"  
-END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"                
+END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits"
+END_POINT_DELETE_FILE = "/plugin/deleteFiles"
+END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 is_connection = False
@@ -63,6 +63,11 @@ MAX_RECONNECT_ATTEMPTS = 10
 HEART_INTERVAL = 30
 gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
+
+taskIdDict = dict()
+taskIdSet = set()
+numberDict = dict()
+lastNumber = 0
 
 
 def parse_args():
@@ -223,41 +228,6 @@ class ManagedThreadPoolExecutor(ThreadPoolExecutor):
 
 # 创建线程池执行器
 executor = ManagedThreadPoolExecutor(max_workers=20)
-
-
-# 定义一个双向字典，维护正在等待进度（包括排队人数）的生成记录
-# key: generate_record_id, value: prompt_id
-class BidirectionalDict:
-    def __init__(self):
-        self.forward = {}
-        self.backward = {}
-
-    def add(self, key, value):
-        self.forward[key] = value
-        self.backward[value] = key
-
-    def has_key(self, key):
-        return key in self.forward
-
-    def get_value_by_key(self, key):
-        return self.forward.get(key)
-
-    def remove_key(self, key):
-        value = self.forward.pop(key, None)
-        self.backward.pop(value, None)
-
-    def has_value(self, value):
-        return value in self.backward
-
-    def get_key_by_value(self, value):
-        return self.backward.get(value)
-
-    def remove_value(self, value):
-        key = self.backward.pop(value, None)
-        self.forward.pop(key, None)
-
-
-bd = BidirectionalDict()
 
 
 def is_image_file(image_path):
@@ -421,15 +391,10 @@ async def send_heartbeat(websocket):
             )
             uniqueids = get_filenames(workflow_path)
 
-            # 获取当前队列大小
-            rres = await get_remaining_from_comfyui()
-            queue_size = rres.get("exec_info").get("queue_remaining")
-
             payload = {
                 "type": "ping",
                 "data": {
                     "uni_hash": uni_hash,
-                    "queue_size": queue_size,
                     "uniqueids": uniqueids,
                 },
             }
@@ -454,7 +419,8 @@ def get_filenames(directory):
         all_entries = [
             name
             for name in all_entries
-            if os.path.isfile(os.path.join(directory, name)) and not name.startswith(".")
+            if os.path.isfile(os.path.join(directory, name))
+            and not name.startswith(".")
         ]
         # 提取文件名（去掉扩展名）
         all_entries = [name.split(".")[0] for name in all_entries]
@@ -471,10 +437,14 @@ async def receive_messages(websocket, c_flag):
                 print(f"接收支付宝云端ws事件数据: {message}")
                 await process_server_message1(message)
             elif c_flag == 2:
-                print(f"接收comfyUI的生图任务信息: {message}")
-                await process_server_message2(message)
+                try:
+                    print(f"接收comfyUI的生图任务信息: {message}")
+                    await process_server_message2(message)
+                except Exception as e:
+                    print(f"生图任务事件代码有 bug: {e}")
+                    logger.error(e)
     except Exception as e:
-        print(f"ws{c_flag} 接收消息失败: {e}")
+        print(f"咔叽ws{c_flag} 接收消息失败: {e}")
         raise e
 
 
@@ -488,9 +458,9 @@ async def handle_websocket(c_flag):
                 url = cfy_ws_url
             else:
                 return
-            logging.info(f"ws{c_flag},url: {url},开始发起连接")
+            logging.info(f"咔叽ws{c_flag},url: {url},开始发起连接")
             async with websockets.connect(url) as websocket:
-                print(f"ws{c_flag} 连接成功！~")
+                print(f"咔叽ws{c_flag} 连接成功！~")
                 if c_flag == 1:
                     wss_c1 = websocket
                     tasks = [
@@ -504,9 +474,9 @@ async def handle_websocket(c_flag):
                     ]
                 await asyncio.gather(*tasks)
         except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
-            print(f"ws{c_flag} 连接不上{e}")
+            print(f"咔叽ws{c_flag} 连接不上{e}")
         except Exception as e:
-            print(f"ws{c_flag} 连接失败,请检查网络{e}")
+            print(f"咔叽ws{c_flag} 连接失败,请检查网络{e}")
 
         # asyncio.gather其中的任务不退出，就不会重新连
         await asyncio.sleep(RECONNECT_DELAY)
@@ -529,7 +499,7 @@ async def process_server_message1(message):
 
         elif message_type == "cancel_listen":
             print("任务进度监听取消", data)
-            bd.remove_key(data["kaji_generate_record_id"])
+            taskIdSet.discard(data["kaji_generate_record_id"])
 
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
@@ -538,22 +508,22 @@ async def process_server_message1(message):
 
 
 # 查出新任务的排队情况
-async def find_prompt_status(prompt_id):
-    qres = await get_queue_from_comfyui()
-    runing_number = 0
-    if qres:
-        # 检查 queue_running
-        for item in qres.get("queue_running", []):
-            runing_number = item[0]
-            if item[1] == prompt_id:
-                return {"cur_q": 0, "q_status": "queue_running"}
+# async def find_prompt_status(prompt_id):
+#     qres = await get_queue_from_comfyui()
+#     runing_number = 0
+#     if qres:
+#         # 检查 queue_running
+#         for item in qres.get("queue_running", []):
+#             runing_number = item[0]
+#             if item[1] == prompt_id:
+#                 return {"cur_q": 0, "q_status": "queue_running"}
 
-        # 检查 queue_pending
-        for item in qres.get("queue_pending", []):
-            if item[1] == prompt_id:
-                cur_q = item[0] - runing_number
-                return {"cur_q": cur_q, "q_status": "queue_pending"}
-    return None
+#         # 检查 queue_pending
+#         for item in qres.get("queue_pending", []):
+#             if item[1] == prompt_id:
+#                 cur_q = item[0] - runing_number
+#                 return {"cur_q": cur_q, "q_status": "queue_pending"}
+#     return None
 
 
 # 发送所有任务的排队情况(此处也可以与 ping 事件合并)
@@ -569,11 +539,12 @@ async def update_all_prompt_status():
         for item in qres.get("queue_pending", []):
             if item:
                 prompt_id = item[1]
+                kaji_generate_record_id = taskIdDict.get(prompt_id)
                 # 判断是否还需要发送信息给前端用户
-                if not bd.has_value(prompt_id):
+                if not kaji_generate_record_id in taskIdSet:
                     continue
                 cur_q = item[0] - runing_number
-                queue_info[prompt_id] = cur_q
+                queue_info[kaji_generate_record_id] = cur_q
 
         if queue_info:
             update_queue = {
@@ -584,31 +555,57 @@ async def update_all_prompt_status():
             await wss_c1.send(json.dumps(update_queue))
 
 
-# comfyUI 的 任务数据
+# comfyUI websocket 实时返回的任务数据事件
 async def process_server_message2(message):
-    global last_value, last_time
+    global last_value, last_time, lastNumber
     message_json = json.loads(message)
     message_type = message_json.get("type")
     if message_type == "status":
-        pass
+        # 三种时刻触发该事件(新增任务，开始任务，完成任务)，通过该事件得知机器的繁忙程度，做好负载均衡（queue_remaining:队列大小）
+        # 一个很不爽的点，完成任务后就会立即开始下一个任务。这意味着每次都连发两条status事件，妈的，浪费带宽。
+        status_data = message_json.get("data", {})
+        queue_size = status_data.get("status").get("exec_info").get("queue_remaining")
+        print(f"队列大小信息，发给服务端，用于做好负载均衡{queue_size}")
+        statusEvent = {
+            "type": "status",
+            "data": {
+                "uni_hash": uni_hash,
+                "queue_size": queue_size,
+            },
+        }
+        await wss_c1.send(json.dumps(statusEvent))
     elif message_type == "execution_start":
         # 该任务开始执行，进行中...
-        pass
-    elif message_type == "execution_cached":
-        # 该任务被缓存好的所有节点数组
-        pass
+        # 明确某个任务开始执行
+        prompt_id = message_json["data"]["prompt_id"]
+        kaji_generate_record_id = taskIdDict.get(prompt_id)
 
+        lastNumber = numberDict.get(prompt_id)
+
+        startEvent = {
+            "type": "execution_start",
+            "data": {
+                "kaji_generate_record_id": kaji_generate_record_id,
+                "prompt_id": prompt_id,
+            },
+        }
+        await wss_c1.send(json.dumps(startEvent))
+    elif message_type == "execution_cached":
+        # 该任务被缓存好的所有节点数组（服务端暂时不用，不用通知）
+        pass
     elif message_type == "executing":
-        # 该任务某个节点正在执行中
+        # 该任务某个节点正在执行中（服务端暂时不用，不用通知）
         pass
     elif message_type == "progress":
         # 该任务某个节点的具体的执行进度，与executing事件对应（往往最耗时的节点是ksample那个环节）
         progress_data = message_json.get("data", {})
         prompt_id = progress_data.get("prompt_id")
 
-        # 判断是否还需要发送信息给前端用户
-        if not bd.has_value(prompt_id):
+        kaji_generate_record_id = taskIdDict.get(prompt_id)
+        # 判断用户是否取消监听
+        if not kaji_generate_record_id in taskIdSet:
             return
+        # 本地存着promptid 与 表主键的map映射
 
         value = progress_data.get("value")
         max_value = progress_data.get("max")
@@ -634,42 +631,44 @@ async def process_server_message2(message):
         last_value = value
         last_time = current_time
 
-        # 通过 wss_c1 发送进度信息
-        if wss_c1 is not None:
-            progress_message = {
-                "type": "progress_update",
-                "data": {
-                    "remaining_time": remaining_time,  # 发送剩余时间
-                    "prompt_id": prompt_id,
-                    "value": value,
-                    "max_value": max_value,
-                },
-            }
-            await wss_c1.send(json.dumps(progress_message))  # 发送进度消息
-            print(f"发送进度更新: {progress_message}")
-        else:
-            print("wss_c1 连接未建立，无法发送进度消息")
+        progressEvent = {
+            "type": "progress_update",
+            "data": {
+                "kaji_generate_record_id": kaji_generate_record_id,
+                "prompt_id": prompt_id,
+                "remaining_time": remaining_time,  # 发送剩余时间
+                "value": value,
+                "max_value": max_value,
+            },
+        }
+        await wss_c1.send(json.dumps(progressEvent))  # 发送进度消息
+        print(f"发送进度更新: {progressEvent}")
 
     elif message_type == "executed":
         # TODO 不是这样拿结果图...
         # 该任务某个节点执行结束。也就是最后保存结果节点。从中拿到结果。
         prompt_id = message_json["data"]["prompt_id"]
+        kaji_generate_record_id = taskIdDict.get(prompt_id)
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
         # get_generated_image_and_upload(filename)
         media_link = await get_generated_image(filename)
-        executed_success = {
+        executedEvent = {
             "type": "executed_success",
             "data": {
+                "kaji_generate_record_id": kaji_generate_record_id,
                 "prompt_id": prompt_id,
                 "media_link": media_link,
                 "media_type": "image",
             },
         }
-        await wss_c1.send(json.dumps(executed_success))
+        await wss_c1.send(json.dumps(executedEvent))
+
+        lastNumber = numberDict.pop(prompt_id) + 1
 
         #  结果发送成功才可以把这个prompt_id删除，否则后续需要补偿
-        bd.remove_value(prompt_id)
+        del taskIdDict[prompt_id]
+        taskIdSet.discard(kaji_generate_record_id)
     elif message_type == "execution_success":
         # 该任务所有节点完成，任务也完成。此时可以通知下
         await update_all_prompt_status()
@@ -679,10 +678,11 @@ async def process_server_message2(message):
         # 该任务出错了。需要通知下
         prompt_id = message_json["data"]["prompt_id"]
 
-        execution_error = {"type": "execution_error", "data": {"prompt_id": prompt_id}}
-        await wss_c1.send(json.dumps(execution_error))
+        errorEvent = {"type": "execution_error", "data": {"prompt_id": prompt_id}}
+        await wss_c1.send(json.dumps(errorEvent))
         #  结果发送成功才可以把这个prompt_id删除，否则后续需要补偿
-        bd.remove_value(prompt_id)
+        del taskIdDict[prompt_id]
+        taskIdSet.discard(kaji_generate_record_id)
 
     # 可以根据需要添加更多消息类型的处理
 
@@ -752,6 +752,7 @@ async def deleteProduct(req):
 
             return web.json_response(res_js)
 
+
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_4)
 async def toggleAuthor(req):
     jsonData = await req.json()
@@ -766,7 +767,8 @@ async def toggleAuthor(req):
             print("res_js", res_js)
 
             return web.json_response(res_js)
-        
+
+
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_5)
 async def toggleDistribution(req):
     jsonData = await req.json()
@@ -781,7 +783,8 @@ async def toggleDistribution(req):
             print("res_js", res_js)
 
             return web.json_response(res_js)
-        
+
+
 @server.PromptServer.instance.routes.post(END_POINT_FILE_IS_EXITS)
 async def checkFileIsExits(req):
     # 获取请求数据
@@ -791,17 +794,13 @@ async def checkFileIsExits(req):
     file_path = jsonData.get("file_path")
     if not file_path:
         return web.json_response({"success": False, "errMsg": "文件路径不能为空"})
-    abs_file_path = os.path.join(
-            find_project_root(),file_path
-        )
+    abs_file_path = os.path.join(find_project_root(), file_path)
     # 检查文件是否存在
     file_exists = os.path.exists(abs_file_path)
 
     # 返回结果
-    return web.json_response({
-        "success": True,
-        "fileExists": file_exists
-    })
+    return web.json_response({"success": True, "fileExists": file_exists})
+
 
 @server.PromptServer.instance.routes.post(END_POINT_GET_WORKFLOW)
 async def getWorkflowJson(req):
@@ -814,7 +813,16 @@ async def getWorkflowJson(req):
         return web.json_response({"success": False, "errMsg": "工作流ID不能为空"})
 
     # 构建工作流文件的绝对路径
-    base_dir = os.path.abspath(os.path.join(find_project_root(), "custom_nodes", "ComfyUI_bxj", "config", "json", "workflow"))
+    base_dir = os.path.abspath(
+        os.path.join(
+            find_project_root(),
+            "custom_nodes",
+            "ComfyUI_bxj",
+            "config",
+            "json",
+            "workflow",
+        )
+    )
     abs_file_path = os.path.join(base_dir, f"{workflow_id}.json")
 
     # 防止路径遍历攻击，确保文件在允许的目录下
@@ -828,16 +836,16 @@ async def getWorkflowJson(req):
 
     # 读取文件内容
     try:
-        with open(abs_file_path, 'r', encoding='utf-8') as f:
+        with open(abs_file_path, "r", encoding="utf-8") as f:
             workflow_data = json.load(f)
     except Exception as e:
-        return web.json_response({"success": False, "errMsg": f"读取工作流文件时出错：{str(e)}"})
+        return web.json_response(
+            {"success": False, "errMsg": f"读取工作流文件时出错：{str(e)}"}
+        )
 
     # 返回工作流数据
-    return web.json_response({
-        "success": True,
-        "workflow": workflow_data
-    })
+    return web.json_response({"success": True, "workflow": workflow_data})
+
 
 @server.PromptServer.instance.routes.post(END_POINT_DELETE_FILE)
 async def deleteFile(req):
@@ -860,9 +868,12 @@ async def deleteFile(req):
             return web.json_response({"success": True, "message": "文件删除成功"})
         except Exception as e:
             # 处理删除文件时的异常
-            return web.json_response({"success": False, "errMsg": f"删除文件时出错：{str(e)}"})
+            return web.json_response(
+                {"success": False, "errMsg": f"删除文件时出错：{str(e)}"}
+            )
     else:
         return web.json_response({"success": False, "errMsg": "文件不存在"})
+
 
 # 前端直传有跨域问题，暂时不知道咋解决，先传给python端。
 # 前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
@@ -1270,13 +1281,18 @@ async def run_gc_task_async(task_data):
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
 
-            cur_queue_info = await find_prompt_status(prompt_id)
-            logging.info(f"立即获取当前任务的排队状态： {cur_queue_info}")
-            # 排队0人：代表此前空闲，将会立即开始
-
             # 本地维护关系
-            bd.add(kaji_generate_record_id, prompt_id)
-            # 存储到云端，表明此生图任务提交成功，让服务端等待这个prompt_id最终结果(任务生图进度的数据发不发，会根据本地保存的prompt_id对应的前端用户ws)
+            taskIdDict[prompt_id] = kaji_generate_record_id
+            taskIdSet.add(kaji_generate_record_id)
+
+            # cur_queue_info = await find_prompt_status(prompt_id)
+            # logging.info(f"立即获取当前任务的排队状态： {cur_queue_info}")
+
+            # 通过接口调用来获取排队数量，有点太慢了，这里要快
+            number = result["number"]
+            numberDict[prompt_id] = number
+            cur_q = number - lastNumber
+            logging.info(f"立即获取当前任务的排队状态： {cur_q}")
 
             # 服务器也维护关系
             submit_success = {
@@ -1284,7 +1300,7 @@ async def run_gc_task_async(task_data):
                 "data": {
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
-                    "cur_q": cur_queue_info.get("cur_q"),
+                    "cur_q": cur_q,
                 },
             }
             await wss_c1.send(json.dumps(submit_success))
