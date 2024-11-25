@@ -65,9 +65,9 @@ gc_task_queue = queue.Queue()
 ws_task_queue = queue.Queue()
 
 taskIdDict = dict()
-taskIdSet = set()
+listeningTasks = set()  # 用于进度数据的发送控制（量比较大，所以判断一下，减少请求）
 numberDict = dict()
-lastNumber = 0
+runningNumber = -1  # -1代表没有任务，机器空闲状态
 
 
 def parse_args():
@@ -499,7 +499,7 @@ async def process_server_message1(message):
 
         elif message_type == "cancel_listen":
             print("任务进度监听取消", data)
-            taskIdSet.discard(data["kaji_generate_record_id"])
+            listeningTasks.discard(data["kaji_generate_record_id"])
 
     except json.JSONDecodeError:
         print("Received non-JSON message from server.")
@@ -507,86 +507,40 @@ async def process_server_message1(message):
         print(f"An error occurred while processing the message: {e}")
 
 
-# 查出新任务的排队情况
-# async def find_prompt_status(prompt_id):
-#     qres = await get_queue_from_comfyui()
-#     runing_number = 0
-#     if qres:
-#         # 检查 queue_running
-#         for item in qres.get("queue_running", []):
-#             runing_number = item[0]
-#             if item[1] == prompt_id:
-#                 return {"cur_q": 0, "q_status": "queue_running"}
-
-#         # 检查 queue_pending
-#         for item in qres.get("queue_pending", []):
-#             if item[1] == prompt_id:
-#                 cur_q = item[0] - runing_number
-#                 return {"cur_q": cur_q, "q_status": "queue_pending"}
-#     return None
-
-
-# 发送所有任务的排队情况(此处也可以与 ping 事件合并)
-async def update_all_prompt_status():
-    qres = await get_queue_from_comfyui()
-
-    if qres:
-        runing_number = 0
-        queue_info = {}
-        for item in qres.get("queue_running", []):
-            if item:
-                runing_number = item[0]
-        for item in qres.get("queue_pending", []):
-            if item:
-                prompt_id = item[1]
-                kaji_generate_record_id = taskIdDict.get(prompt_id)
-                # 判断是否还需要发送信息给前端用户
-                if not kaji_generate_record_id in taskIdSet:
-                    continue
-                cur_q = item[0] - runing_number
-                queue_info[kaji_generate_record_id] = cur_q
-
-        if queue_info:
-            update_queue = {
-                "type": "update_queue",
-                "data": {"queue_info": queue_info},
-            }
-            # 这里可以和ping 的逻辑保持一致。合并
-            await wss_c1.send(json.dumps(update_queue))
-
-
 # comfyUI websocket 实时返回的任务数据事件
 async def process_server_message2(message):
-    global last_value, last_time, lastNumber
+    global last_value, last_time, runningNumber, queue_size
     message_json = json.loads(message)
     message_type = message_json.get("type")
     if message_type == "status":
-        # 三种时刻触发该事件(新增任务，开始任务，完成任务)，通过该事件得知机器的繁忙程度，做好负载均衡（queue_remaining:队列大小）
-        # 一个很不爽的点，完成任务后就会立即开始下一个任务。这意味着每次都连发两条status事件，妈的，浪费带宽。
+        # 三种时刻触发该事件(新增任务，开始任务，完成任务)，通过该事件得知机器的实时繁忙程度，用于负载均衡（queue_remaining:队列大小）
+
+        # 1:每次生成提交成功时，回调给服务端的时候，能立即感知到队列大小，负载均衡也就比较准
+        # 2:此处记入内存的值，可以在未来某个事件一并带到服务端
         status_data = message_json.get("data", {})
         queue_size = status_data.get("status").get("exec_info").get("queue_remaining")
-        print(f"队列大小信息，发给服务端，用于做好负载均衡{queue_size}")
-        statusEvent = {
-            "type": "status",
-            "data": {
-                "uni_hash": uni_hash,
-                "queue_size": queue_size,
-            },
-        }
-        await wss_c1.send(json.dumps(statusEvent))
     elif message_type == "execution_start":
-        # 该任务开始执行，进行中...
-        # 明确某个任务开始执行
+        # 任务开始
         prompt_id = message_json["data"]["prompt_id"]
         kaji_generate_record_id = taskIdDict.get(prompt_id)
+        runningNumber = numberDict.pop(prompt_id)
 
-        lastNumber = numberDict.get(prompt_id)
+        # 需要通知的所有任务主键
+        result = []
+        for prompt_id in numberDict.keys():
+            if prompt_id in taskIdDict:
+                id = taskIdDict[prompt_id]
+                if id in listeningTasks:
+                    result.append(id)
+        print(result)
 
         startEvent = {
             "type": "execution_start",
             "data": {
                 "kaji_generate_record_id": kaji_generate_record_id,
                 "prompt_id": prompt_id,
+                "runningNumber": runningNumber,
+                "ids": result,
             },
         }
         await wss_c1.send(json.dumps(startEvent))
@@ -595,17 +549,32 @@ async def process_server_message2(message):
         pass
     elif message_type == "executing":
         # 该任务某个节点正在执行中（服务端暂时不用，不用通知）
-        pass
+        data = message_json.get("data", {})
+        logger.info(f"executing事件: {data}")
+        prompt_id = data.get("prompt_id")
+
+        node = data.get("node")
+        if node is None:
+            # 源码查看显示，这里才是任务真正结束的时候
+            runningNumber = -1
+            # 发送机器的队列大小的变化
+            queueChangeEvent = {
+                "type": "update_queue",
+                "data": {"uni_hash": uni_hash, "queue_size": queue_size},
+            }
+            await wss_c1.send(json.dumps(queueChangeEvent))  # 发送进度消息
+            print(f"上个任务完成了，队列有变动: {queueChangeEvent}")
+
     elif message_type == "progress":
-        # 该任务某个节点的具体的执行进度，与executing事件对应（往往最耗时的节点是ksample那个环节）
+        # 某个节点的具体的执行进度，与executing事件对应
+        # （整个工作流往往最耗时的节点是ksample那个节点，此处的步长数据就当作工作流的进度）
         progress_data = message_json.get("data", {})
         prompt_id = progress_data.get("prompt_id")
 
         kaji_generate_record_id = taskIdDict.get(prompt_id)
         # 判断用户是否取消监听
-        if not kaji_generate_record_id in taskIdSet:
+        if not kaji_generate_record_id in listeningTasks:
             return
-        # 本地存着promptid 与 表主键的map映射
 
         value = progress_data.get("value")
         max_value = progress_data.get("max")
@@ -648,7 +617,7 @@ async def process_server_message2(message):
         # TODO 不是这样拿结果图...
         # 该任务某个节点执行结束。也就是最后保存结果节点。从中拿到结果。
         prompt_id = message_json["data"]["prompt_id"]
-        kaji_generate_record_id = taskIdDict.get(prompt_id)
+        kaji_generate_record_id = taskIdDict.pop(prompt_id)
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
         # get_generated_image_and_upload(filename)
@@ -664,25 +633,27 @@ async def process_server_message2(message):
         }
         await wss_c1.send(json.dumps(executedEvent))
 
-        lastNumber = numberDict.pop(prompt_id) + 1
-
-        #  结果发送成功才可以把这个prompt_id删除，否则后续需要补偿
-        del taskIdDict[prompt_id]
-        taskIdSet.discard(kaji_generate_record_id)
+        listeningTasks.discard(kaji_generate_record_id)
     elif message_type == "execution_success":
-        # 该任务所有节点完成，任务也完成。此时可以通知下
-        await update_all_prompt_status()
-
-    elif message_type == "execution_error":
+        # 所有节点完成，该任务也完成。此时可以通知下，排队数
+        # await update_all_prompt_status()
+        pass
+    elif message_type == "execution_error" or message_type == "execution_interrupted":
         print(f"执行错误: {message_json}")
-        # 该任务出错了。需要通知下
+        # 该任务出错了。服务端就直接失败退款
         prompt_id = message_json["data"]["prompt_id"]
+        kaji_generate_record_id = taskIdDict.pop(prompt_id)
 
-        errorEvent = {"type": "execution_error", "data": {"prompt_id": prompt_id}}
+        errorEvent = {
+            "type": "execution_error",
+            "data": {
+                "kaji_generate_record_id": kaji_generate_record_id,
+                "prompt_id": prompt_id,
+            },
+        }
         await wss_c1.send(json.dumps(errorEvent))
-        #  结果发送成功才可以把这个prompt_id删除，否则后续需要补偿
-        del taskIdDict[prompt_id]
-        taskIdSet.discard(kaji_generate_record_id)
+
+        listeningTasks.discard(kaji_generate_record_id)
 
     # 可以根据需要添加更多消息类型的处理
 
@@ -1283,15 +1254,15 @@ async def run_gc_task_async(task_data):
 
             # 本地维护关系
             taskIdDict[prompt_id] = kaji_generate_record_id
-            taskIdSet.add(kaji_generate_record_id)
+            listeningTasks.add(kaji_generate_record_id)
 
             # cur_queue_info = await find_prompt_status(prompt_id)
             # logging.info(f"立即获取当前任务的排队状态： {cur_queue_info}")
 
-            # 通过接口调用来获取排队数量，有点太慢了，这里要快
+            # 每次通过接口调用来获取排队信息，有点太慢了，这里要快。直接返回牌号，当场算就可以
             number = result["number"]
             numberDict[prompt_id] = number
-            cur_q = number - lastNumber
+            cur_q = 0 if (runningNumber == -1) else (number - runningNumber)
             logging.info(f"立即获取当前任务的排队状态： {cur_q}")
 
             # 服务器也维护关系
@@ -1300,11 +1271,13 @@ async def run_gc_task_async(task_data):
                 "data": {
                     "kaji_generate_record_id": kaji_generate_record_id,
                     "prompt_id": prompt_id,
+                    "number": number,
+                    "uni_hash": uni_hash,
                     "cur_q": cur_q,
                 },
             }
             await wss_c1.send(json.dumps(submit_success))
-            logging.info(f"任务成功提交，prompt_id: {result['prompt_id']}")
+            logging.info(f"任务成功提交，prompt_id: {submit_success}")
         else:
             logging.error("任务提交失败")
 
