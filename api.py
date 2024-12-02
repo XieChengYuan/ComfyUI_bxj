@@ -13,10 +13,6 @@ import hashlib
 import threading
 import asyncio
 import websockets
-import queue
-import traceback
-from concurrent.futures import ThreadPoolExecutor
-from threading import Lock, Condition
 from comfy.cli_args import parser
 import logging
 import random
@@ -24,7 +20,6 @@ import mimetypes
 import math
 import platform
 import subprocess
-from aiohttp import web
 from datetime import datetime
 
 # 在文件开头设置日志配置
