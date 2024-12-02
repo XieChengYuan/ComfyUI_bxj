@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
 UPLOAD_OSS_URL = "/http/ext-storage-co/getUploadFileOptions"
-CLOUD_PATH = f"workflow/output/{datetime.now().strftime('%s%f')}.png"
+CLOUD_FILE_NAME = f"{datetime.now().strftime('%s%f')}.png"
 
 END_POINT_URL3 = "/kaji-upload-file/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
@@ -1180,14 +1180,19 @@ async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
     return None
 
 
+# 输出图上传专用（其他地方有需要，可抽出公共部分）
 async def upload_output_image(filename):
     temp_path = os.path.join(media_output_dir, filename)
     if not os.path.exists(temp_path):
         print(f"File does not exist: {temp_path}")
         return None
+    bizCode = "workflow_output"
+
     async with aiohttp.ClientSession() as session:
         async with session.get(
-            BASE_URL + UPLOAD_OSS_URL + f"?cloudPath={CLOUD_PATH}"
+            BASE_URL
+            + UPLOAD_OSS_URL
+            + f"?bizCode={bizCode}&cloudFileName={CLOUD_FILE_NAME}"
         ) as response:
             if response.status == 200:
                 uploadOptionsRes = await response.json()
