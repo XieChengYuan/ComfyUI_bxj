@@ -27,7 +27,6 @@ import subprocess
 from aiohttp import web
 from datetime import datetime
 
-
 # 在文件开头设置日志配置
 logging.basicConfig(
     level=logging.DEBUG,
@@ -40,7 +39,6 @@ DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
 
 UPLOAD_OSS_URL = "/http/ext-storage-co/getUploadFileOptions"
-CLOUD_FILE_NAME = f"{datetime.now().strftime('%s%f')}.png"
 END_POINT_URL3 = "/kaji-upload-file/uploadFile"  # 云端该接口已废弃，改为七牛云扩展存储
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"  # 云端该接口已废弃，改为下发的/plugin/createOrUpdateProduct
 
@@ -62,8 +60,7 @@ last_time = None
 RECONNECT_DELAY = 5
 MAX_RECONNECT_ATTEMPTS = 10
 HEART_INTERVAL = 30
-gc_task_queue = queue.Queue()
-ws_task_queue = queue.Queue()
+gc_task_queue = asyncio.Queue()  # 改为异步队列
 
 taskIdDict = dict()
 listeningTasks = set()  # 用于进度数据的发送控制（量比较大，所以判断一下，减少请求）
@@ -191,71 +188,6 @@ def get_comfyui_address():
     address = get_address_from_args(args)
     port = parse_port_from_args(args)
     return f"http://{address}:{port}"
-
-
-class ManagedThreadPoolExecutor(ThreadPoolExecutor):
-    def __init__(self, max_workers=None, thread_name_prefix=""):
-        super().__init__(max_workers=max_workers, thread_name_prefix=thread_name_prefix)
-        self._task_lock = Lock()
-        self._task_condition = Condition(self._task_lock)
-        self._current_active_tasks = 0
-        self._max_concurrent_tasks = max_workers
-
-    def submit(self, fn, *args, **kwargs):
-        with self._task_lock:
-            while self._current_active_tasks >= self._max_concurrent_tasks:
-                self._task_condition.wait()
-            self._current_active_tasks += 1
-
-        wrapped_function = self._wrap_task(fn)
-        future_task = super().submit(wrapped_function, *args, **kwargs)
-        return future_task
-
-    def _wrap_task(self, fn):
-        def wrapped_fn(*args, **kwargs):
-            try:
-                return fn(*args, **kwargs)
-            finally:
-                with self._task_lock:
-                    self._current_active_tasks -= 1
-                    self._task_condition.notify_all()
-
-        return wrapped_fn
-
-    def get_active_task_count(self):
-        with self._task_lock:
-            return self._current_active_tasks
-
-
-# 创建线程池执行器
-executor = ManagedThreadPoolExecutor(max_workers=20)
-
-
-def is_image_file(image_path):
-    if not os.path.isfile(image_path):
-        print(f"文件不存在: {image_path}")
-        return False
-    try:
-        with Image.open(image_path) as img:
-            img.verify()
-        print(f"文件存在且为有效的图片: {image_path}")
-        return True
-    except (IOError, SyntaxError) as e:
-        print(f"文件存在，但不是有效的图片: {image_path}")
-        return False
-
-
-def get_comfy_root(levels_up=2):
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-
-    relative_path = os.path.join(current_directory, *[".."] * levels_up)
-
-    proj_root = os.path.abspath(relative_path)
-
-    if not proj_root.endswith(os.sep):
-        proj_root += os.sep
-
-    return proj_root
 
 
 def getInputTypeArr(data):
@@ -431,22 +363,26 @@ def get_filenames(directory):
 
 
 async def receive_messages(websocket, c_flag):
-    try:
-        while True:
+    while True:
+        try:
             message = await websocket.recv()
+        except Exception as e:
+            # WebSocket 连接出问题，抛出异常供上游处理
+            logger.critical(f"咔叽ws{c_flag} 接收消息失败，可能需要重连: {e}")
+            raise e
+
+        try:
             if c_flag == 1:
-                print(f"接收支付宝云端ws事件数据: {message}")
+                logger.info(f"接收支付宝云端ws事件数据: {message}")
                 await process_server_message1(message)
             elif c_flag == 2:
-                try:
-                    print(f"接收comfyUI的生图任务信息: {message}")
-                    await process_server_message2(message)
-                except Exception as e:
-                    print(f"生图任务事件代码有 bug: {e}")
-                    logger.error(e)
-    except Exception as e:
-        print(f"咔叽ws{c_flag} 接收消息失败: {e}")
-        raise e
+                logger.info(f"接收comfyUI的生图任务信息: {message}")
+                await process_server_message2(message)
+            else:
+                logger.warning(f"未识别的c_flag: {c_flag}, 丢弃消息: {message}")
+        except Exception as e:
+            # 消息处理异常，记录错误但不中断循环
+            logger.error(f"处理消息时发生错误 (c_flag={c_flag}): {e}")
 
 
 async def handle_websocket(c_flag):
@@ -459,12 +395,14 @@ async def handle_websocket(c_flag):
                 url = cfy_ws_url
             else:
                 return
+
             logging.info(f"咔叽ws{c_flag},url: {url},开始发起连接")
             async with websockets.connect(url) as websocket:
                 print(f"咔叽ws{c_flag} 连接成功！~")
                 if c_flag == 1:
                     wss_c1 = websocket
                     tasks = [
+                        # 显示任务调度
                         asyncio.create_task(send_heartbeat(websocket)),
                         asyncio.create_task(receive_messages(websocket, c_flag)),
                     ]
@@ -473,13 +411,13 @@ async def handle_websocket(c_flag):
                     tasks = [
                         asyncio.create_task(receive_messages(websocket, c_flag)),
                     ]
+                # 等待上面的所有任务完成（除非某个任务抛错，也就是websocket连接失败，否则永久循环）
                 await asyncio.gather(*tasks)
         except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError) as e:
             print(f"咔叽ws{c_flag} 连接不上{e}")
         except Exception as e:
             print(f"咔叽ws{c_flag} 连接失败,请检查网络{e}")
 
-        # asyncio.gather其中的任务不退出，就不会重新连
         await asyncio.sleep(RECONNECT_DELAY)
 
 
@@ -490,9 +428,6 @@ async def process_server_message1(message):
         message_data = json.loads(message)
         message_type = message_data.get("type")
         data = message_data.get("data", {})
-
-        # if message_type == "pong":
-        #     print("连接正常")
 
         if message_type == "generate_submit":
             print("收到生图消息", data)
@@ -655,18 +590,6 @@ async def process_server_message2(message):
         listeningTasks.discard(kaji_generate_record_id)
 
     # 可以根据需要添加更多消息类型的处理
-
-
-async def on_websocket_disconnection(websocket):
-    if websocket is not None:
-        await websocket.close()
-        print("WebSocket connection has been closed.")
-
-
-def start_websocket_thread(c_flag):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(handle_websocket(c_flag))
 
 
 async def get_wss_server_url():
@@ -1040,38 +963,34 @@ def save_workflow(uniqueid, data):
     print(f"工作流数据已保存: \nWorkflow: {workflow_file}\nOutput: {output_file}")
 
 
-def run_task_with_loop(task, *args, **kwargs):
+async def task_generate():
     while True:
-        task(*args, **kwargs)
-
-
-def task_generate():
-    try:
-        task_data = gc_task_queue.get(timeout=300)
-        if "data" in task_data and isinstance(task_data["data"], dict):
-            executor.submit(run_gc_task, task_data["data"])
+        try:
+            task_data = await gc_task_queue.get()
+            # executor.submit(run_gc_task, task_data["data"])
+            # 这里任务处理需要并发吗？待讨论
+            # 比如机器恢复时，可能大量暂存任务同时请求过来（comfyUI的/prompt核心接口是否也支持大量并发,目前此处没开异步任务，是一个一个调用/prompt）
+            # 如果改为多个协程并发访问，记得使用asyncio.Lock 来保护集合操作
+            await run_gc_task_async(task_data)
             gc_task_queue.task_done()
-        else:
-            logging.error(f"任务数据格式不正确: {task_data}")
-    except queue.Empty:
-        print("没有可用的任务，继续等待...")
-    except Exception as e:
-        print(f"发生错误: {e}")
-        traceback.print_exc()
+        except asyncio.CancelledError:
+            logging.error("Task was cancelled.")
+        except Exception as e:
+            logging.error(f"发生错误: {e}")
 
 
-async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
+async def send_prompt_to_comfyui(prompt, workflow=None):
     comfyui_address = get_comfyui_address()
 
     data = {
         "prompt": prompt,
-        "client_id": client_id,
+        "client_id": cur_client_id,
     }
     logging.info(f"发送到 ComfyUI 的 prompt 数据: {data}")
     if workflow and "extra_data" in workflow:
         data["extra_data"] = workflow["extra_data"]
 
-    logging.info(f"核心接口 /prompt的接口入参: {data}")
+    # logging.info(f"核心接口 /prompt的接口入参: {data}")
     async with aiohttp.ClientSession() as session:
         async with session.post(f"{comfyui_address}/prompt", json=data) as response:
             if response.status == 200:
@@ -1086,84 +1005,6 @@ async def send_prompt_to_comfyui(prompt, client_id, workflow=None):
                 return None
 
 
-async def get_queue_from_comfyui():
-    comfyui_address = get_comfyui_address()
-
-    # 构建请求的 URL
-    url = f"{comfyui_address}/queue"
-    logging.info(f"请求 ComfyUI 的队列详情: {url}")
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                response_json = await response.json()
-                logging.info(f"/queue 接口出参: {response_json}")
-                return response_json
-            else:
-                error_text = await response.text()
-                logging.error(
-                    f"获取队列失败，状态码: {response.status}, 错误信息: {error_text}"
-                )
-                return None
-
-
-async def get_remaining_from_comfyui():
-    comfyui_address = get_comfyui_address()
-
-    # 构建请求的 URL
-    url = f"{comfyui_address}/prompt"
-    logging.info(f"请求 ComfyUI 的队列大小: {url}")
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                response_json = await response.json()
-                logging.info(f"/prompt 接口出参: {response_json}")
-                return response_json
-            else:
-                error_text = await response.text()
-                logging.error(
-                    f"获取队列大小失败，状态码: {response.status}, 错误信息: {error_text}"
-                )
-                return None
-
-
-@DeprecationWarning
-async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
-    comfyui_address = get_comfyui_address()
-    retries = 0
-    async with aiohttp.ClientSession() as session:
-        while retries < max_retries:
-            try:
-                async with session.get(
-                    f"{comfyui_address}/history/{prompt_id}"
-                ) as response:
-                    if response.status == 200:
-                        history = await response.json()
-                        if prompt_id in history:
-                            status = history[prompt_id]["status"]["status"]
-                            if status == "completed":
-                                print(f"生成完成，prompt_id: {prompt_id}")
-                                return history[prompt_id]
-                            elif status == "error":
-                                print(f"生成失败，prompt_id: {prompt_id}")
-                                return None
-                            else:
-                                print(f"生成中，状态: {status}，prompt_id: {prompt_id}")
-                        else:
-                            print(f"历史记录中未找到 prompt_id: {prompt_id}，等待中...")
-                    else:
-                        print(f"获取历史记录失败，状态码: {response.status}")
-            except Exception as e:
-                print(f"等待生成时发生错误: {str(e)}")
-
-            retries += 1
-            await asyncio.sleep(retry_delay)
-
-    print(f"达到最大重试次数，prompt_id: {prompt_id}")
-    return None
-
-
 # 输出图上传专用（其他地方有需要，可抽出公共部分）
 async def upload_output_image(filename):
     temp_path = os.path.join(media_output_dir, filename)
@@ -1173,10 +1014,11 @@ async def upload_output_image(filename):
     bizCode = "workflow_output"
 
     async with aiohttp.ClientSession() as session:
+        cloudFileName = f"{datetime.now().strftime('%s%f')}.png"
         async with session.get(
             BASE_URL
             + UPLOAD_OSS_URL
-            + f"?bizCode={bizCode}&cloudFileName={CLOUD_FILE_NAME}"
+            + f"?bizCode={bizCode}&cloudFileName={cloudFileName}"
         ) as response:
             if response.status == 200:
                 uploadOptionsRes = await response.json()
@@ -1205,10 +1047,6 @@ async def upload_output_image(filename):
                 return None
 
 
-def run_gc_task(task_data):
-    asyncio.run(run_gc_task_async(task_data))
-
-
 def validate_prompt(prompt):
     for node_id, node_data in prompt.items():
         if "class_type" not in node_data:
@@ -1220,22 +1058,17 @@ def validate_prompt(prompt):
 async def run_gc_task_async(task_data):
     try:
         logging.info(f"工作队列获取任务-开始执行: {task_data}")
-        if (
-            "client_id" not in task_data
-            or "prompt" not in task_data
-            or "kaji_generate_record_id" not in task_data
-        ):
+        if "prompt" not in task_data or "kaji_generate_record_id" not in task_data:
             logging.error(f"任务数据不完整: {task_data}")
             return
         prompt = task_data["prompt"]
-        client_id = task_data["client_id"]
         kaji_generate_record_id = task_data["kaji_generate_record_id"]
 
         if not validate_prompt(prompt):
             logging.error("prompt 数据无效")
             return
 
-        result = await send_prompt_to_comfyui(prompt, client_id)
+        result = await send_prompt_to_comfyui(prompt)
         if result and "prompt_id" in result:
             prompt_id = result["prompt_id"]
 
@@ -1243,13 +1076,10 @@ async def run_gc_task_async(task_data):
             taskIdDict[prompt_id] = kaji_generate_record_id
             listeningTasks.add(kaji_generate_record_id)
 
-            # cur_queue_info = await find_prompt_status(prompt_id)
-            # logging.info(f"立即获取当前任务的排队状态： {cur_queue_info}")
-
             # 每次通过接口调用来获取排队信息，有点太慢了，这里要快。直接返回牌号，当场算就可以
             number = result["number"]
             numberDict[prompt_id] = number
-            cur_q = 0 if (runningNumber == -1) else (number - runningNumber)
+            cur_q = number - runningNumber
             logging.info(f"立即获取当前任务的排队状态： {cur_q}")
 
             # 服务器也维护关系
@@ -1271,12 +1101,6 @@ async def run_gc_task_async(task_data):
     except Exception as e:
         logging.error(f"执行任务时发生错误: {str(e)}")
         logging.error("详细错误信息:", exc_info=True)
-
-
-# 添加任务到队列的函数
-def add_task_to_queue(task_data):
-    gc_task_queue.put(task_data)
-    print("任务(包含工作流的数据)添加至工作队列。")
 
 
 async def download_media_async(url, save_dir):
@@ -1314,6 +1138,7 @@ async def download_media_async(url, save_dir):
         return None
 
 
+# TODO 可以改为并发下载所有输入图
 async def download_all_media(form_data):
     download_tasks = []
 
@@ -1375,7 +1200,7 @@ async def deal_recv_generate_data(recv_data):
     # 从 uniqueid 加载对应的 output
     output = get_output(uniqueid + ".json")
 
-    # 等待下载所有媒体文件才难生成
+    # 等待下载所有媒体文件才能生成
     # 下载失败或其他插件端生成异常，如果没有同步到生成失败的状态去退款，可能需要一个统一的超时处理执行退款等炒作
     downloaded_paths = await download_all_media(form_data)
 
@@ -1383,10 +1208,10 @@ async def deal_recv_generate_data(recv_data):
     update_output_from_form_data(form_data, output, downloaded_paths)
 
     # 预处理并继续后续操作
-    pre_process_data(kaji_generate_record_id, output)
+    await pre_process_data(kaji_generate_record_id, output)
 
 
-def pre_process_data(kaji_generate_record_id, output):
+async def pre_process_data(kaji_generate_record_id, output):
     try:
         # 通过查看comfyui原生缓存机制定位到，调用prompt接口不会自动修改Ksample中的随机种子值，导致走了缓存逻辑，所以直接跳过了所有步骤。
         # （缓存机制在execution.py-->execute函数-->recursive_output_delete_if_changed函数）
@@ -1399,16 +1224,13 @@ def pre_process_data(kaji_generate_record_id, output):
         # 使用收到的输入数据生图
         # 准备任务数据
         task_data = {
-            "type": "prompt_queue",
-            "data": {
-                "kaji_generate_record_id": kaji_generate_record_id,
-                "client_id": cur_client_id,
-                "prompt": output,
-            },
+            "kaji_generate_record_id": kaji_generate_record_id,
+            "prompt": output,
         }
-        # 将任务添加到队列
-        add_task_to_queue(task_data)
 
+        # 将任务添加到队列
+        await gc_task_queue.put(task_data)
+        print("任务(包含工作流的数据)添加至工作队列。")
     except Exception as e:
         print(f"处理数据时发生错误: {e}")
 
@@ -1455,8 +1277,19 @@ def find_project_root():
 
 
 def thread_run():
-    logging.info(f"进程启动，咔叽插件初始化：开启WS、队列消费")
-    threading.Thread(target=start_websocket_thread, args=(1,), daemon=True).start()
-    threading.Thread(target=start_websocket_thread, args=(2,), daemon=True).start()
-    executor.submit(run_task_with_loop, task_generate)
-    pass
+    logging.info(f"咔叽插件网络资源初始化：如 websocket、异步队列等")
+    # 只开启一个线程
+    threading.Thread(target=run_asyncio_in_thread, daemon=True).start()
+
+
+# 线程内使用asyncio管理所有异步任务；队列也改为异步队列
+def run_asyncio_in_thread():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)  # 手动绑定事件循环
+    loop.run_until_complete(
+        asyncio.gather(
+            handle_websocket(1),
+            handle_websocket(2),
+            task_generate(),
+        )
+    )
