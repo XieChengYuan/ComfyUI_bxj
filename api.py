@@ -28,6 +28,7 @@ import platform
 import subprocess
 import aiohttp_cors
 from aiohttp import web
+from datetime import datetime
 
 
 # 在文件开头设置日志配置
@@ -40,6 +41,9 @@ logger = logging.getLogger(__name__)
 
 DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
+UPLOAD_OSS_URL = "/http/ext-storage-co/getUploadFileOptions"
+CLOUD_PATH = f"workflow/output/{datetime.now().strftime('%s%f')}.png"
+
 END_POINT_URL3 = "/kaji-upload-file/uploadFile"
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
@@ -564,7 +568,6 @@ async def process_server_message2(message):
             }
             await wss_c1.send(json.dumps(queueChangeEvent))  # 发送进度消息
             print(f"上个任务完成了，队列有变动: {queueChangeEvent}")
-
     elif message_type == "progress":
         # 某个节点的具体的执行进度，与executing事件对应
         # （整个工作流往往最耗时的节点是ksample那个节点，此处的步长数据就当作工作流的进度）
@@ -620,8 +623,8 @@ async def process_server_message2(message):
         kaji_generate_record_id = taskIdDict.pop(prompt_id)
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
-        # get_generated_image_and_upload(filename)
-        media_link = await get_generated_image(filename)
+        media_link = await upload_output_image(filename)
+
         executedEvent = {
             "type": "executed_success",
             "data": {
@@ -635,8 +638,7 @@ async def process_server_message2(message):
 
         listeningTasks.discard(kaji_generate_record_id)
     elif message_type == "execution_success":
-        # 所有节点完成，该任务也完成。此时可以通知下，排队数
-        # await update_all_prompt_status()
+        # 所有节点完成，该任务也完成。
         pass
     elif message_type == "execution_error" or message_type == "execution_interrupted":
         print(f"执行错误: {message_json}")
@@ -1178,44 +1180,40 @@ async def wait_for_generation(prompt_id, max_retries=30, retry_delay=1):
     return None
 
 
-async def get_generated_image_by_id(session, prompt_id):
-    comfyui_address = get_comfyui_address()
-    async with session.get(f"{comfyui_address}/history/{prompt_id}") as response:
-        if response.status == 200:
-            history = await response.json()
-            outputs = history[prompt_id]["outputs"]
-            if outputs:
-                # 假设我们只关心第一个输出的第一张图片
-                first_output = outputs[0]
-                if "images" in first_output and first_output["images"]:
-                    image_filename = first_output["images"][0]["filename"]
-                    # 获取图像数据
-                    async with session.get(
-                        f"{comfyui_address}/view?filename={image_filename}"
-                    ) as img_response:
-                        if img_response.status == 200:
-                            return await img_response.read()
-
-
-async def get_generated_image(filename):
-    comfyui_address = get_comfyui_address()
+async def upload_output_image(filename):
+    temp_path = os.path.join(media_output_dir, filename)
+    if not os.path.exists(temp_path):
+        print(f"File does not exist: {temp_path}")
+        return None
     async with aiohttp.ClientSession() as session:
         async with session.get(
-            f"{comfyui_address}/view?filename={filename}"
-        ) as img_response:
-            if img_response.status == 200:
-                image_content = await img_response.read()
-                logging.info("获取本地的图片结果，并传到云端")
-                # todo https://doc.dcloud.net.cn/uniCloud/ext-storage/dev.html#q3
-                # 上传到扩展存储。1：获取前端上传参数（地址和token），2：然后上传
-                imageBase = base64.b64encode(image_content).decode("utf-8")
-                async with session.post(
-                    BASE_URL + END_POINT_URL3, json={"imageBase": imageBase}
-                ) as upload_response:
-                    if upload_response.status == 200:
-                        result = await upload_response.json()
-                        logging.info(f"生产成功，返回值: {result}")
-                        return result.get("data").get("tempUrl")
+            BASE_URL + UPLOAD_OSS_URL + f"?cloudPath={CLOUD_PATH}"
+        ) as response:
+            if response.status == 200:
+                uploadOptionsRes = await response.json()
+                print("获取上传相关凭证等：", uploadOptionsRes)
+                url = uploadOptionsRes["uploadFileOptions"]["url"]  # 上传地址
+                token = uploadOptionsRes["uploadFileOptions"]["formData"]["token"]
+                key = uploadOptionsRes["uploadFileOptions"]["formData"]["key"]
+
+                with open(temp_path, "rb") as file:
+                    # 创建一个类似FormData功能的字典来准备POST请求的数据
+                    form_data = aiohttp.FormData()
+                    form_data.add_field("file", file, filename=filename)
+                    form_data.add_field("token", token)
+                    form_data.add_field("key", key)
+                    async with session.post(url, data=form_data) as upload_response:
+                        try:
+                            upload_data = await upload_response.json()
+                            print("结果图上传成功：", upload_data)
+                            # 处理成功情况
+                            return uploadOptionsRes["fileURL"]
+                        except json.JSONDecodeError as e:
+                            print("解析上传结果失败", e)
+                            return None
+            else:
+                print(f"获取上传配置信息失败，状态码: {response.status}")
+                return None
 
 
 def run_gc_task(task_data):
