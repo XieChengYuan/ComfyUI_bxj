@@ -13,7 +13,6 @@ import hashlib
 import threading
 import asyncio
 import websockets
-import collections
 import queue
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -21,12 +20,10 @@ from threading import Lock, Condition
 from comfy.cli_args import parser
 import logging
 import random
-import requests
 import mimetypes
 import math
 import platform
 import subprocess
-import aiohttp_cors
 from aiohttp import web
 from datetime import datetime
 
@@ -41,11 +38,12 @@ logger = logging.getLogger(__name__)
 
 DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
+
 UPLOAD_OSS_URL = "/http/ext-storage-co/getUploadFileOptions"
 CLOUD_FILE_NAME = f"{datetime.now().strftime('%s%f')}.png"
+END_POINT_URL3 = "/kaji-upload-file/uploadFile"  # 云端该接口已废弃，改为七牛云扩展存储
+END_POINT_URL1 = "/kaji-upload-file/uploadProduct"  # 云端该接口已废弃，改为下发的/plugin/createOrUpdateProduct
 
-END_POINT_URL3 = "/kaji-upload-file/uploadFile"
-END_POINT_URL1 = "/kaji-upload-file/uploadProduct"
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
 END_POINT_URL_FOR_PRODUCT_1 = "/plugin/getProducts"
 END_POINT_URL_FOR_PRODUCT_2 = "/plugin/createOrUpdateProduct"
@@ -57,7 +55,6 @@ END_POINT_DELETE_FILE = "/plugin/deleteFiles"
 END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
-is_connection = False
 wss_c1 = None
 wss_c2 = None
 last_value = None
@@ -1041,19 +1038,6 @@ def save_workflow(uniqueid, data):
         json.dump(data.get("output", {}), f, indent=4, ensure_ascii=False)
 
     print(f"工作流数据已保存: \nWorkflow: {workflow_file}\nOutput: {output_file}")
-
-
-def thread_exe():
-    global is_connection
-    logging.info(f"是否已连接过: {is_connection}")
-    if is_connection:
-        return
-    is_connection = True
-    logging.info(f"开启WS、环形队列")
-
-    threading.Thread(target=start_websocket_thread, args=(1,), daemon=True).start()
-    threading.Thread(target=start_websocket_thread, args=(2,), daemon=True).start()
-    executor.submit(run_task_with_loop, task_generate)
 
 
 def run_task_with_loop(task, *args, **kwargs):
