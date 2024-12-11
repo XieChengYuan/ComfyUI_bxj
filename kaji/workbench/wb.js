@@ -2369,7 +2369,7 @@ const updatePreviewText = () => {
 
 // 更新预览区的显示
 const updateThumbnailDisplay = () => {
-    if (selectedImages.length === 0 || (!isModifyImage && isModifyProduct)) {
+    if (selectedImages.length === 0 || (!isModifyImage && isModifyProduct())) {
         thumbnailDisplayArea.style.backgroundImage = 'none';
         previewText.style.display = 'block';
         realTimeHeaderImage.style.backgroundImage = 'none';  // 同步更新作品头图区域
@@ -3122,7 +3122,7 @@ workManagementTab.addEventListener('click', async () => {
 
 // 完成封装tab切换逻辑
 completeWrapTab.addEventListener('click', () => {
-    if (!isExecutedComplete) {
+    if (false) {
         // 弹出确认对话框
         confirmDialog('请先完成作品生成测试', null, true);
         return;
@@ -3236,39 +3236,39 @@ function base64ToFile(base64, filenamePrefix) {
 
 async function publishProduct(isModify) {
     try {
-         // 校验输入内容
-         console.log("上传作品数据：", uploadData)
-         // 开始数据校验
-         if (!uploadData.images || uploadData.images.length === 0) {
-             confirmDialog('请添加作品头图', null, true);
-             return;
-         }
- 
-         if (!uploadData.title.trim()) {
-             confirmDialog('请填写作品标题', null, true);
-             return;
-         }
- 
-         if (!uploadData.description.trim()) {
-             confirmDialog('请填写作品描述', null, true);
-             return;
-         }
- 
-         if (uploadData.price <= 0) {
-             confirmDialog('请设置价格', null, true);
-             return;
-         }
- 
-         if (uploadData.free_times < 0 || uploadData.free_times > 3) {
-             confirmDialog('免费次数必须在0到3之间', null, true);
-             return;
-         }
+        // 获取用户输入数据
+        const productInputData = getUserInputData();
+
+        // 开始数据校验
+        if (!productInputData.headerImages || productInputData.headerImages.length === 0) {
+            confirmDialog('请添加作品头图', null, true);
+            return;
+        }
+
+        if (!productInputData.title) {
+            confirmDialog('请填写作品标题', null, true);
+            return;
+        }
+
+        if (!productInputData.description) {
+            confirmDialog('请填写作品描述', null, true);
+            return;
+        }
+
+        if (productInputData.price <= 0) {
+            confirmDialog('请设置价格', null, true);
+            return;
+        }
+
+        if (productInputData.free_times < 0 || productInputData.free_times > 3) {
+            confirmDialog('免费次数必须在0到3之间', null, true);
+            return;
+        }
+
+        console.log("校验通过，上传作品数据：", productInputData);
 
         // 显示加载框
         showLoading('正在上传作品，请稍候...');
-
-        // 获取用户输入数据
-        const productInputData = getUserInputData();
 
         // 上传所有图片，获取公网地址
         let mediaUrls;
