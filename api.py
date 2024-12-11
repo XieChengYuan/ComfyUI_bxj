@@ -34,7 +34,7 @@ DEBUG = True
 BASE_URL = "https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn"
 
 UPLOAD_OSS_URL = "/http/ext-storage-co/getUploadFileOptions"
-END_POINT_URL3 = "/kaji-upload-file/uploadFile"  # 云端该接口已废弃，改为七牛云扩展存储
+END_POINT_URL3 = "/kaji-upload-file/uploadFile"  # 改为七牛云扩展存储
 END_POINT_URL1 = "/kaji-upload-file/uploadProduct"  # 云端该接口已废弃，改为下发的/plugin/createOrUpdateProduct
 
 END_POINT_URL2 = "/get-ws-address/getWsAddress"
@@ -46,6 +46,8 @@ END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus"
 END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits"
 END_POINT_DELETE_FILE = "/plugin/deleteFiles"
 END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"
+END_POINT_DELETE_WORKFLOW = "/plugin/deleteWorkflowFile"
+
 media_save_dir = ".../../input"
 media_output_dir = ".../../output"
 wss_c1 = None
@@ -680,7 +682,7 @@ async def checkFileIsExits(req):
     file_path = jsonData.get("file_path")
     if not file_path:
         return web.json_response({"success": False, "errMsg": "文件路径不能为空"})
-    abs_file_path = os.path.join(find_project_root(), file_path)
+    abs_file_path = os.path.join(find_plugin_root(), file_path)
     # 检查文件是否存在
     file_exists = os.path.exists(abs_file_path)
 
@@ -742,7 +744,7 @@ async def deleteFile(req):
         return web.json_response({"success": False, "errMsg": "文件路径不能为空"})
 
     # 构建绝对文件路径
-    abs_file_path = os.path.abspath(os.path.join(find_project_root(), file_path))
+    abs_file_path = os.path.abspath(os.path.join(find_plugin_root(), file_path))
 
     # 检查文件是否存在
     if os.path.exists(abs_file_path):
@@ -757,97 +759,78 @@ async def deleteFile(req):
             )
     else:
         return web.json_response({"success": False, "errMsg": "文件不存在"})
+    
+@server.PromptServer.instance.routes.post(END_POINT_DELETE_WORKFLOW)
+async def delete_workflow(req):
+    # 获取请求数据
+    jsonData = await req.json()
 
+    # 获取工作流的唯一标识 uniqueid
+    uniqueid = jsonData.get("uniqueid")
+    if not uniqueid:
+        return web.json_response({"success": False, "errMsg": "uniqueid 不能为空"})
 
-# 前端直传有跨域问题，暂时不知道咋解决，先传给python端。
-# 前端直传接口已预留，后续如果通过扩展存储可以解决跨域问题，直接用，否则这里加上传扩展存储
-@server.PromptServer.instance.routes.post(END_POINT_URL3)
-async def uploadFile(req):
     try:
-        # 提取 multipart 数据
-        reader = await req.multipart()
+        # 调用 get_workflow 获取工作流数据
+        workflow_data = get_workflow(uniqueid)
+        if not workflow_data:
+            return web.json_response({"success": False, "errMsg": "未找到对应的工作流数据"})
 
-        # 读取文件数据
-        field = await reader.next()
-        if not field or field.name != "file":
-            return web.Response(status=400, text="Missing file field")
+        # 构建工作流文件的绝对路径
+        base_dir = os.path.abspath(
+            os.path.join(
+                find_plugin_root(),
+                "config",
+                "json",
+                "workflow",
+            )
+        )
+        abs_file_path = os.path.join(base_dir, f"{uniqueid}.json")
 
-        # 使用时间戳生成文件名
-        timestamp = int(time.time())
-        original_filename = field.filename or "uploaded_image.png"
-        filename = f"{timestamp}_{original_filename}"
-
-        # 暂存到 input 文件夹
-        os.makedirs(media_save_dir, exist_ok=True)  # 确保目录存在
-        temp_path = os.path.join(media_save_dir, filename)
-
-        # 读取传输的数据
-        base64_data = b""
-        while True:
-            chunk = await field.read_chunk()
-            if not chunk:
-                break
-            base64_data += chunk
-
-        # 检查数据是否为 Base64 格式
-        base64_data_str = base64_data.decode("utf-8")
-        if base64_data_str.startswith("data:image"):
-            # 去掉 Base64 前缀（如 `data:image/png;base64,`）
-            base64_data_str = base64_data_str.split(",")[1]
-
-        try:
-            # 解码 Base64 数据为二进制
-            binary_data = base64.b64decode(base64_data_str)
-        except Exception as e:
-            return web.Response(status=400, text=f"Invalid Base64 data: {str(e)}")
-
-        # 保存解码后的二进制文件到本地
-        with open(temp_path, "wb") as f:
-            f.write(binary_data)
-
-        print(f"文件已成功保存到本地: {temp_path}")
-
-        # 验证文件是否为有效图片（可选）
-        if not temp_path.lower().endswith(
-            (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp")
-        ):
-            return web.Response(status=400, text="Unsupported file type")
-
-        # 上传到远程存储服务
-        async with aiohttp.ClientSession() as session:
-            upload_url = f"{BASE_URL}{END_POINT_URL3}"  # 替换为实际上传接口
-            payload = {
-                "imageBase": base64_data_str,  # 传递原始的 Base64 数据
-                "filename": filename,
-            }
-            headers = {"Authorization": f"Bearer {token}"}
-
-            async with session.post(
-                upload_url, json=payload, headers=headers
-            ) as response:
-                if response.status == 200:
-                    res_js = await response.json()
-                    uploaded_url = res_js.get("data", {}).get("tempUrl")
-                    fileID = res_js.get("data", {}).get("fileID")
-
-                    if uploaded_url:
-                        # 返回格式化的响应
-                        return web.json_response(
-                            {"type": "images", "url": fileID, "url_temp": uploaded_url}
-                        )
-                    else:
-                        return web.Response(
-                            status=500, text="Failed to retrieve uploaded URL"
-                        )
-                else:
-                    error_text = await response.text()
-                    return web.Response(
-                        status=response.status, text=f"Upload failed: {error_text}"
-                    )
+        # 检查文件是否存在并尝试删除
+        if os.path.exists(abs_file_path):
+            os.remove(abs_file_path)
+            return web.json_response({"success": True, "message": "工作流文件删除成功"})
+        else:
+            return web.json_response({"success": False, "errMsg": "文件不存在"})
 
     except Exception as e:
-        print(f"错误: {str(e)}")
-        return web.Response(status=500, text=f"Internal server error: {str(e)}")
+        return web.json_response({"success": False, "errMsg": f"删除工作流时出错：{str(e)}"})
+
+
+# 获取上传凭证，由前端直传扩展存储
+@server.PromptServer.instance.routes.post("/get-upload-token")
+async def get_upload_token(req):
+    try:
+        json_data = await req.json()
+
+        original_file_name = json_data.get("fileName")
+        if not original_file_name:
+            return web.json_response({"success": False, "errMsg": "缺少文件名参数"})
+        cloud_directory = json_data.get("directory", "kaji/product_medias/product_images")
+
+        # 保留文件扩展名
+        file_extension = os.path.splitext(original_file_name)[1]
+        if not file_extension:
+            return web.json_response({"success": False, "errMsg": "文件名缺少扩展名"})
+
+        biz_code = "uploaded_images"
+        cloud_file_name = f"{cloud_directory}/{datetime.now().strftime('%s%f')}{file_extension}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{BASE_URL}{UPLOAD_OSS_URL}?bizCode={biz_code}&cloudFileName={cloud_file_name}"
+            ) as response:
+                if response.status == 200:
+                    upload_options = await response.json()
+                    return web.json_response({"success": True, "data": upload_options})
+                else:
+                    return web.json_response(
+                        {"success": False, "errMsg": "获取上传凭证失败"}
+                    )
+    except Exception as e:
+        print(f"获取上传凭证时出错: {str(e)}")
+        return web.json_response({"success": False, "errMsg": "服务器内部错误"})
 
 
 @server.PromptServer.instance.routes.post(END_POINT_URL1)
@@ -1034,6 +1017,7 @@ async def upload_output_image(filename):
             else:
                 print(f"获取上传配置信息失败，状态码: {response.status}")
                 return None
+
 
 
 def validate_prompt(prompt):

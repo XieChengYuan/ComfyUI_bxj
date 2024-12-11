@@ -522,7 +522,8 @@ const END_POINT_URL_FOR_PRODUCT_4 = "/plugin/toggleAuthorStatus";        //切�
 const END_POINT_URL_FOR_PRODUCT_5 = "/plugin/toggleDistributionStatus";  //删除分成
 const END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits";                   //文件是否存在
 const END_POINT_DELETE_FILE = "/plugin/deleteFiles";                     //删除文件
-const END_POINT_GET_WORKFLOW = "/plugin/getWorkflow";                    //获取工作流数据        
+const END_POINT_GET_WORKFLOW = "/plugin/getWorkflow";                    //获取工作流数据
+const END_POINT_DELETE_WORKFLOW_FILE = "/plugin/deleteWorkflowFile";     // 删除指定工作流文件接口        
 //临时测试数据
 const TEST_UID = "66c981879d9f915ad268680a"
 // 动态处理 HTTP 和 WebSocket 请求
@@ -660,6 +661,13 @@ async function toggleDistribution(data) {
     return res;
 }
 
+//删除工作流数据
+async function deleteWorkflow(data) {
+    const res = await request(END_POINT_DELETE_WORKFLOW_FILE, data);
+    console.log('删除作品工作流数据: ', res);
+    return res;
+}
+
 //请求建立websocket连接
 async function getWss() {
     try {
@@ -722,31 +730,59 @@ async function getView(data) {
 }
 
 
-//前端直传。MD有跨域问题，暂时不知道咋搞跨域，先传到python端吧。
-//下面是直传的接口，等接了扩展存储，用下面的方法直传试一下。
-//采用文件流的方式传输，base64数据太大，请求不了
-async function uploadSingleImage(file) {
-    const endpoint = '/kaji-upload-file/uploadFile';
-    const formData = new FormData();
-    formData.append('file', file);
-
-    console.log('开始上传文件...');
-
+//前端直传。
+async function uploadSingleImage(file, directory = "kaji/product_medias/product_images") {
+    // 1: 请求后端获取上传凭证
+    const tokenEndpoint = '/get-upload-token';
     try {
-        const response = await fetch(endpoint, {
+        console.log("上传文件的文件",file)
+        const tokenResponse = await fetch(tokenEndpoint, {
             method: 'POST',
-            body: formData,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                fileName: file.name,
+                directory: directory // 添加上传目录字段
+            }), 
         });
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+
+        const tokenData = await tokenResponse.json();
+        if (!tokenData.success) {
+            throw new Error(tokenData.errMsg || '获取上传凭证失败');
         }
 
-        const result = await response.json();
-        console.log('文件上传成功，返回数据：', result);
-        return result;
+        const { uploadFileOptions, fileURL } = tokenData.data;
+        const { url, formData } = uploadFileOptions;
+
+        // 2: 构造 FormData 直传扩展存储
+        const formDataPayload = new FormData();
+        formDataPayload.append('file', file); 
+        for (const [key, value] of Object.entries(formData)) {
+            formDataPayload.append(key, value);
+        }
+
+        console.log('开始直传文件到云存储...');
+
+        // 3: 直传文件到云存储
+        const uploadResponse = await fetch(url, {
+            method: 'POST',
+            body: formDataPayload,
+        });
+
+        console.log('文件直传成功，云存储文件 URL:', fileURL);
+
+        // Step 4: 返回直传结果
+        return {
+            type:"image",
+            url_temp: fileURL, // 返回文件的公网访问 URL
+        };
     } catch (error) {
-        console.error('文件上传失败:', error.message);
-        throw error;
+        console.error('上传文件时出错:', error.message);
+        return {
+            success: false,
+            errMsg: error.message || '上传文件失败',
+        };
     }
 }
 
@@ -2632,7 +2668,7 @@ workManagementContent.innerHTML = `
 async function checkWorkflowFile(work) {
     try {
         // 构造请求数据，传递 uniqueid 对应的文件路径
-        const filePath = `custom_nodes/ComfyUI_bxj/config/json/workflow/${work.uniqueid}.json`;
+        const filePath = `config/json/workflow/${work.uniqueid}.json`;
         const data = { file_path: filePath };
 
         // 调用检查文件接口
@@ -2845,8 +2881,8 @@ async function processWork(work) {
             confirmDialog(`确认删除${work.title}吗？`, async () => {
                 try {
                     // 构造删除本地文件的请求数据
-                    const filePath1 = `custom_nodes/ComfyUI_bxj/config/json/workflow/${work.uniqueid}.json`;
-                    const filePath2 = `custom_nodes/ComfyUI_bxj/config/json/output/${work.uniqueid}.json`;
+                    const filePath1 = `config/json/workflow/${work.uniqueid}.json`;
+                    const filePath2 = `config/json/output/${work.uniqueid}.json`;
                     const deleteFileData1 = { file_path: filePath1 };
                     const deleteFileData2 = { file_path: filePath2 };
 
@@ -3184,6 +3220,20 @@ document.getElementById('publish-button').addEventListener('click', async () => 
 
 });
 
+function base64ToFile(base64, filenamePrefix) {
+    const arr = base64.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1]; // 获取 MIME 类型
+    const extension = mime.split('/')[1]; // 提取后缀名，例如 png、jpeg
+    const bstr = atob(arr[1]); // 解码 Base64 数据
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    const filename = `${filenamePrefix}.${extension}`; // 动态生成文件名
+    return new File([u8arr], filename, { type: mime });
+}
+
 async function publishProduct(isModify) {
     try {
         // 显示加载框
@@ -3199,9 +3249,11 @@ async function publishProduct(isModify) {
                 selectedImages.map(async (base64Image, index) => {
                     try {
                         console.log(`正在上传第 ${index + 1} 张图片...`);
+                        // 转换 Base64 为 File
+                        const file = base64ToFile(base64Image, `image_${index + 1}`);
 
-                        // 上传单张图片，直接接收返回的格式化对象
-                        const result = await uploadSingleImage(base64Image);
+                        // 调用上传函数，上传单个文件
+                        const result = await uploadSingleImage(file);
 
                         console.log(`第 ${index + 1} 张图片上传成功，返回数据：`, result);
 
@@ -3275,11 +3327,16 @@ async function publishProduct(isModify) {
             console.log('作品发布成功:', response.data);
 
             hideLoading(); // 隐藏加载框
-            confirmDialog('作品发布成功！', () => {
+            confirmDialog('作品发布成功！', async() => {
+                 //修改删除旧的本地工作流文件
+                 const tempWork = JSON.parse(sessionStorage.getItem('temp_work'));
+                 if(tempWork && tempWork.uniqueid)
+                 {
+                    await deleteLocalAndRemoteWorkflow();
+                 }
                 // 删除 sessionStorage 中的 temp_work
                 sessionStorage.removeItem('temp_work');
                 isModifyImage = false;
-                //TODO:如果是修改删除旧的本地工作流文件
                 pluginUI.classList.remove('show'); // 关闭插件界面
                 setTimeout(() => {
                     overlay.style.display = 'none';
@@ -3299,6 +3356,37 @@ async function publishProduct(isModify) {
     }
 }
 
+// 删除本地工作流文件，并调用接口删除服务端对应工作流
+async function deleteLocalAndRemoteWorkflow() {
+    try {
+        // 从 sessionStorage 获取 temp_work
+        const tempWork = JSON.parse(sessionStorage.getItem('temp_work'));
+
+        if (!tempWork || !tempWork.uniqueid) {
+            console.error('未找到 temp_work 或其 uniqueid');
+            return;
+        }
+
+        const workflowId = tempWork.uniqueid;
+
+        console.log('准备删除的工作流 uniqueid:', workflowId);
+
+        // 调用后端接口删除工作流
+        const response = await deleteWorkflow({ workflow_id: workflowId });
+
+        // 根据后端响应处理结果
+        if (response.success) {
+            console.log('工作流删除成功:', response);
+            // 删除 sessionStorage 中的 temp_work
+            sessionStorage.removeItem('temp_work');
+            console.log('本地 temp_work 数据已删除');
+        } else {
+            console.error('删除工作流失败:', response.message || '未知错误');
+        }
+    } catch (error) {
+        console.error('删除工作流过程中出错:', error);
+    }
+}
 
 // 按钮拖动功能
 let isDragging = false;
