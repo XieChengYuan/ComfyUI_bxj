@@ -742,8 +742,7 @@ async function uploadSingleImage(file, directory = "kaji/product_medias/product_
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
-                fileName: file.name,
-                directory: directory // 添加上传目录字段
+                fileName: file.name
             }), 
         });
 
@@ -751,6 +750,7 @@ async function uploadSingleImage(file, directory = "kaji/product_medias/product_
         if (!tokenData.success) {
             throw new Error(tokenData.errMsg || '获取上传凭证失败');
         }
+        console.log('获取的上传凭证',tokenData);
 
         const { uploadFileOptions, fileURL } = tokenData.data;
         const { url, formData } = uploadFileOptions;
@@ -762,7 +762,7 @@ async function uploadSingleImage(file, directory = "kaji/product_medias/product_
             formDataPayload.append(key, value);
         }
 
-        console.log('开始直传文件到云存储...');
+        console.log('开始直传文件到云存储...',formDataPayload);
 
         // 3: 直传文件到云存储
         const uploadResponse = await fetch(url, {
@@ -3236,6 +3236,34 @@ function base64ToFile(base64, filenamePrefix) {
 
 async function publishProduct(isModify) {
     try {
+         // 校验输入内容
+         console.log("上传作品数据：", uploadData)
+         // 开始数据校验
+         if (!uploadData.images || uploadData.images.length === 0) {
+             confirmDialog('请添加作品头图', null, true);
+             return;
+         }
+ 
+         if (!uploadData.title.trim()) {
+             confirmDialog('请填写作品标题', null, true);
+             return;
+         }
+ 
+         if (!uploadData.description.trim()) {
+             confirmDialog('请填写作品描述', null, true);
+             return;
+         }
+ 
+         if (uploadData.price <= 0) {
+             confirmDialog('请设置价格', null, true);
+             return;
+         }
+ 
+         if (uploadData.free_times < 0 || uploadData.free_times > 3) {
+             confirmDialog('免费次数必须在0到3之间', null, true);
+             return;
+         }
+
         // 显示加载框
         showLoading('正在上传作品，请稍候...');
 
@@ -3262,6 +3290,9 @@ async function publishProduct(isModify) {
                     } catch (error) {
                         console.error(`第 ${index + 1} 张图片上传失败:`, error);
                         throw new Error(`图片上传失败，请稍后重试`);
+                        hideLoading(); // 隐藏加载框
+                        confirmDialog('图片上传失败，请稍后重试。', null, true);
+                        return; // 终止后续逻辑
                     }
                 })
             );
@@ -3286,34 +3317,6 @@ async function publishProduct(isModify) {
             output: output,                                                 // 作品工作流数据
             formMetaData: formMetaData,                                     // 表单结构
         };
-
-        // 校验输入内容
-        console.log("上传作品数据：", uploadData)
-        // 开始数据校验
-        if (!uploadData.images || uploadData.images.length === 0) {
-            confirmDialog('请添加作品头图', null, true);
-            return;
-        }
-
-        if (!uploadData.title.trim()) {
-            confirmDialog('请填写作品标题', null, true);
-            return;
-        }
-
-        if (!uploadData.description.trim()) {
-            confirmDialog('请填写作品描述', null, true);
-            return;
-        }
-
-        if (uploadData.price <= 0) {
-            confirmDialog('请设置价格', null, true);
-            return;
-        }
-
-        if (uploadData.free_times < 0 || uploadData.free_times > 3) {
-            confirmDialog('免费次数必须在0到3之间', null, true);
-            return;
-        }
 
         if (isModify && tempWorkData && tempWorkData._id) {
             uploadData.product_id = tempWorkData._id; // 上传 work._id，用于更新作品

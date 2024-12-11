@@ -807,19 +807,20 @@ async def get_upload_token(req):
         original_file_name = json_data.get("fileName")
         if not original_file_name:
             return web.json_response({"success": False, "errMsg": "缺少文件名参数"})
-        cloud_directory = json_data.get("directory", "kaji/product_medias/product_images")
 
         # 保留文件扩展名
         file_extension = os.path.splitext(original_file_name)[1]
         if not file_extension:
             return web.json_response({"success": False, "errMsg": "文件名缺少扩展名"})
 
-        biz_code = "uploaded_images"
-        cloud_file_name = f"{cloud_directory}/{datetime.now().strftime('%s%f')}{file_extension}"
+        biz_code = "product_images"
+        cloud_file_name = f"{datetime.now().strftime('%s%f')}{file_extension}"
 
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"{BASE_URL}{UPLOAD_OSS_URL}?bizCode={biz_code}&cloudFileName={cloud_file_name}"
+                BASE_URL
+            + UPLOAD_OSS_URL
+            + f"?bizCode={biz_code}&cloudFileName={cloud_file_name}"
             ) as response:
                 if response.status == 200:
                     upload_options = await response.json()
