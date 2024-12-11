@@ -314,9 +314,7 @@ async def send_heartbeat(websocket):
             print(f"开始发送心跳, 状态为：{websocket.state}")
 
             # 获取所有工作流id
-            workflow_path = (
-                find_project_root() + "custom_nodes/ComfyUI_bxj/config/json/workflow"
-            )
+            workflow_path = find_plugin_root() + "/config/json/workflow"
             uniqueids = get_filenames(workflow_path)
 
             payload = {
@@ -326,7 +324,7 @@ async def send_heartbeat(websocket):
                     "uniqueids": uniqueids,
                 },
             }
-            print(f"发送 ping 数据：{payload}")
+            print(f"{workflow_path};发送 ping 数据：{payload}")
 
             heartbeat_message = json.dumps(payload)
             await websocket.send(heartbeat_message)
@@ -703,9 +701,7 @@ async def getWorkflowJson(req):
     # 构建工作流文件的绝对路径
     base_dir = os.path.abspath(
         os.path.join(
-            find_project_root(),
-            "custom_nodes",
-            "ComfyUI_bxj",
+            find_plugin_root(),
             "config",
             "json",
             "workflow",
@@ -931,9 +927,7 @@ async def kaji_r(req):
 
 
 def save_workflow(uniqueid, data):
-    base_path = os.path.join(
-        find_project_root(), "custom_nodes/ComfyUI_bxj/config/json/"
-    )
+    base_path = os.path.join(find_plugin_root(), "config/json/")
 
     # 检查并创建主目录
     if not os.path.exists(base_path):
@@ -1245,7 +1239,7 @@ def get_workflow(uniqueid, path="json/workflow/"):
 
 
 def read_json_from_file(name, path="json/", type_1="json"):
-    base_url = find_project_root() + "custom_nodes/ComfyUI_bxj/config/" + path
+    base_url = find_plugin_root() + "config/" + path
     if not os.path.exists(base_url + name):
         return None
     with open(base_url + name, "r") as f:
@@ -1269,6 +1263,11 @@ def find_project_root():
     if not absolute_path.endswith(os.sep):
         absolute_path += os.sep
     return absolute_path
+
+
+def find_plugin_root():
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    return script_directory
 
 
 def thread_run():
