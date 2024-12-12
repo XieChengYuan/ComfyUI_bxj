@@ -2006,7 +2006,7 @@ headerImageSection.innerHTML = `
                 <span style="font-size: 2rem; font-weight: bold; text-shadow: 0px 2px 6px rgba(0, 0, 0, 0.5);">+</span>
             </div>
         </div>
-         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px; color:#666;">最多选择三张图片</p>
+         <p style="text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 10px; color:#666;">拖动可删除</p>
     </div>
     
     <div id="delete-area" style="
@@ -2281,6 +2281,21 @@ function getUserInputData() {
         // 获取推广状态
         distribution_status: promotionToggle.checked ? 1 : 0
     };
+}
+
+function clearUserInputData() {
+    // 清空头图数据
+    selectedImages = []; // 清空图片数组
+    // 清空标题
+    document.getElementById('title-input').value = '';
+    // 清空描述
+    document.getElementById('description-input').value = '';
+    // 清空价格
+    document.getElementById('price-input').value = '';
+    // 清空免费次数
+    document.getElementById('free-input').value = '';
+    // 重置推广状态
+    promotionToggle.checked = false; // 如果推广状态是一个开关控件
 }
 
 // #region 创建设置参数区域
@@ -2901,14 +2916,13 @@ async function processWork(work) {
                         // 云端和本地都成功
                         workCard.remove();
                         confirmDialog('作品和本地文件删除成功！', null, true);
-                        //删除作品移除缓存的修改状态
-                        // TODO:其余地方离开页面清空输入，添加作品内容填充校验
-                        if (isModifyProduct()) {
-                            if (tempWorkData && tempWorkData._id === work._id) {
-                                sessionStorage.removeItem('temp_work');
-                                console.log('已移除 sessionStorage 中的 temp_work');
-                            }
+                        //删除作品移除其缓存的修改状态
+                        const tempWorkData = JSON.parse(sessionStorage.getItem('temp_work'));
+                        if (tempWorkData && tempWorkData._id == work._id) {
+                            resetPageState();
+                            console.log("该修改作品的输入状态已经重置")
                         }
+                        
                     } else if (!productDeleted && !fileDeleted) {
                         // 两个都失败
                         confirmDialog('删除失败：云端作品和本地文件均未删除成功，请重试！', null, true);
@@ -3122,7 +3136,7 @@ workManagementTab.addEventListener('click', async () => {
 
 // 完成封装tab切换逻辑
 completeWrapTab.addEventListener('click', () => {
-    if (false) {
+    if (!isExecutedComplete) {
         // 弹出确认对话框
         confirmDialog('请先完成作品生成测试', null, true);
         return;
@@ -3178,7 +3192,8 @@ function switchToAppParamsTab() {
 
 // 取消按钮逻辑
 document.getElementById('cancel-button').addEventListener('click', () => {
-    confirmDialog('确定要退出吗？所有未保存的更改将会丢失。', () => {
+    confirmDialog('确定要退出吗？所有未保存的更改将会丢失，如在修改作品，请重新点击修改。', () => {
+        resetPageState();      
         pluginUI.classList.remove('show');
         setTimeout(() => {
             overlay.style.display = 'none';
@@ -3289,7 +3304,6 @@ async function publishProduct(isModify) {
                         return result;
                     } catch (error) {
                         console.error(`第 ${index + 1} 张图片上传失败:`, error);
-                        throw new Error(`图片上传失败，请稍后重试`);
                         hideLoading(); // 隐藏加载框
                         confirmDialog('图片上传失败，请稍后重试。', null, true);
                         return; // 终止后续逻辑
@@ -3338,8 +3352,7 @@ async function publishProduct(isModify) {
                     await deleteLocalAndRemoteWorkflow();
                  }
                 // 删除 sessionStorage 中的 temp_work
-                sessionStorage.removeItem('temp_work');
-                isModifyImage = false;
+                resetPageState();
                 pluginUI.classList.remove('show'); // 关闭插件界面
                 setTimeout(() => {
                     overlay.style.display = 'none';
@@ -3357,6 +3370,22 @@ async function publishProduct(isModify) {
     }finally {
         hideLoading(); 
     }
+}
+
+function resetPageState() {
+    // 清除作品发布区域内的用户输入数据
+    clearUserInputData();
+
+    // 删除 sessionStorage 中的 temp_work
+    sessionStorage.removeItem('temp_work');
+
+    // 重置标志变量
+    isModifyImage = false;
+
+    updateThumbnailDisplay();
+    updateRealTimeHeaderImage();
+
+    console.log('页面状态已重置');
 }
 
 // 删除本地工作流文件，并调用接口删除服务端对应工作流
