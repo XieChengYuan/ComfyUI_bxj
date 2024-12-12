@@ -316,7 +316,7 @@ async def send_heartbeat(websocket):
             print(f"开始发送心跳, 状态为：{websocket.state}")
 
             # 获取所有工作流id
-            workflow_path = find_plugin_root() + "/config/json/workflow"
+            workflow_path = find_plugin_root() + "config/json/workflow"
             uniqueids = get_filenames(workflow_path)
 
             payload = {
@@ -1252,6 +1252,8 @@ def find_project_root():
 
 def find_plugin_root():
     script_directory = os.path.dirname(os.path.abspath(__file__))
+    if not script_directory.endswith(os.sep):
+        script_directory += os.sep
     return script_directory
 
 
