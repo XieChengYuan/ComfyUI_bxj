@@ -2744,16 +2744,13 @@ const qrCloseBtn = workManagementContainer.querySelector('#qr-close-btn');
 async function handleWorkManagement() {
     const token = localStorage.getItem('userToken');
     
+    // 如果没有 token，显示二维码
     if (!token) {
-        // 如果没有 token，显示二维码
         fetchTicketAndShowQRCode();
         return;
     }
-    
-    showLoading();
-    const isValid = await loadWorks();
-    hideLoading();
-    
+    // TODO：验证token
+    const isValid = false;
     if (!isValid) {
         // token 过期，重新显示二维码
         fetchTicketAndShowQRCode();
@@ -2795,7 +2792,7 @@ qrCloseBtn.addEventListener('click', () => {
     qrCodeContainer.style.display = 'none';
 });
 
-//TODO：轮询检查扫码登录状态
+//TODO：轮询检查扫码登录状态，登录成功后请求作品数据
 
 
 // 检查workflow文件是否存在
