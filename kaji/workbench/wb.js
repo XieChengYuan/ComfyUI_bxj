@@ -2679,6 +2679,125 @@ workManagementContent.innerHTML = `
     <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">作品管理</h3>
 `;
 
+// 添加二维码展示区域
+const qrCodeContainer = document.createElement('div');
+qrCodeContainer.id = 'qr-code-container';
+qrCodeContainer.style.cssText = `
+    display: flex;
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #1C1C1E;
+    width: 300px;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    text-align: center;
+    color: #ffffff;
+`;
+
+qrCodeContainer.innerHTML = `
+    <!-- 登录标题 -->
+    <div style="font-size: 18px; font-weight: bold; margin-bottom: 16px;
+        text-align: left; color: #ccc;">登录</div>
+
+    <!-- 二维码图片 -->
+    <img id="qr-code-img" src="" alt="二维码" style="
+        width: 240px;
+        height: 240px;
+        background-color: #ffffff;
+        padding: 8px;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    ">
+
+    <!-- 提示文本 -->
+    <p style="margin-top: 10px; font-size: 14px; color: #aaa;">
+        请微信扫码登录
+    </p>
+
+    <!-- 关闭按钮 -->
+    <div id="qr-close-btn" style="
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+        text-align: center;
+        border-radius: 50%;
+        color: #999;
+        cursor: pointer;
+    ">×</div>
+`;
+workManagementContainer.appendChild(qrCodeContainer);
+const qrCodeImage = workManagementContainer.querySelector('#qr-code-img');
+const qrCloseBtn = workManagementContainer.querySelector('#qr-close-btn');
+
+
+//判断本地是否有token
+async function handleWorkManagement() {
+    const token = localStorage.getItem('userToken');
+    
+    if (!token) {
+        // 如果没有 token，显示二维码
+        fetchTicketAndShowQRCode();
+        return;
+    }
+    
+    showLoading();
+    const isValid = await loadWorks();
+    hideLoading();
+    
+    if (!isValid) {
+        // token 过期，重新显示二维码
+        fetchTicketAndShowQRCode();
+    }
+}
+
+//显示二维码并更新token
+//TODO:更新token
+async function fetchTicketAndShowQRCode() {
+    try {
+        // 1. 调用接口获取 ticket
+        const sceneStr = 'test001'; // TODO:自定义参数
+        const response = await fetch(
+            `https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn/plugin/getLoginQrcode?scene_str=${sceneStr}`,
+            { method: 'GET' }
+        );
+        
+        // 2. 解析响应结果
+        const result = await response.json();
+        console.log("获取二维码结果：",result)
+        if (result.success && result.data) {
+            // 3. 拼接二维码地址
+            const ticket = result.data;
+            const qrCodeUrl = `https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=${ticket}`;
+            
+            // 4. 显示二维码
+            qrCodeImage.src = qrCodeUrl;
+            qrCodeContainer.style.display = 'flex';
+        } else {
+            console.error('获取二维码 ticket 失败:', result.msg || '未知错误');
+        }
+    } catch (error) {
+        console.error('调用二维码接口出错:', error);
+    }
+}
+
+// 关闭二维码
+qrCloseBtn.addEventListener('click', () => {
+    qrCodeContainer.style.display = 'none';
+});
+
+//TODO：轮询检查扫码登录状态
+
+
 // 检查workflow文件是否存在
 async function checkWorkflowFile(work) {
     try {
@@ -3013,8 +3132,16 @@ async function loadWorks() {
         <h3 style="margin-top: -2px; color: #f3f3f3; font-weight: bold; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);">作品管理</h3>
     `;
 
-    const data = { user_id: user_id };
-    const res = await request(END_POINT_URL_FOR_PRODUCT_1, data);
+    // 1. 获取本地的 userToken
+    const token = localStorage.getItem('userToken');
+
+    if (!token) {
+        console.error('未获取到有效 token，请先登录！');
+        fetchTicketAndShowQRCode(); // 显示二维码重新登录
+        return;
+    }
+
+    const res = await request(END_POINT_URL_FOR_PRODUCT_1, {token:token});
     console.log('收到的作品数据: ', res);
     const works = res?.data || [];
 
@@ -3046,8 +3173,6 @@ async function loadWorks() {
     }
 }
 
-// 加载作品
-await loadWorks();
 // #endregion 创建作品管理视图容器
 
 // #region 主UI其余内容
@@ -3071,6 +3196,7 @@ pluginUI.appendChild(panelsContainer);
 pluginUI.appendChild(completeWrapContainer);
 pluginUI.appendChild(workManagementContainer);
 pluginUI.appendChild(footer);
+
 // #endregion 主UI其余内容
 
 // #endregion UI组件及样式
@@ -3128,10 +3254,9 @@ workManagementTab.addEventListener('click', async () => {
 
     // 更新底部按钮显示
     updateFooterButtons();
-    // 重新加载作品数据
-    showLoading();
-    await loadWorks();
-    hideLoading();
+
+    // 判断和处理 token
+    await handleWorkManagement();
 });
 
 // 完成封装tab切换逻辑
