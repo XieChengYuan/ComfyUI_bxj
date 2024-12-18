@@ -524,8 +524,7 @@ const END_POINT_FILE_IS_EXITS = "/plugin/fileIsExits";                   //文�
 const END_POINT_DELETE_FILE = "/plugin/deleteFiles";                     //删除文件
 const END_POINT_GET_WORKFLOW = "/plugin/getWorkflow";                    //获取工作流数据
 const END_POINT_DELETE_WORKFLOW_FILE = "/plugin/deleteWorkflowFile";     // 删除指定工作流文件接口        
-//临时测试数据
-const TEST_UID = "66c981879d9f915ad268680a"
+
 // 动态处理 HTTP 和 WebSocket 请求
 async function request(endpoint, data = {}, method = 'POST', token = '') {
     // WebSocket 请求特殊处理
@@ -1036,7 +1035,7 @@ function confirmDialog(message, onConfirm, singleButton = false) {
     // 确认按钮点击事件
     confirmButton.addEventListener('click', () => {
         closeDialog();
-        if (!singleButton && typeof onConfirm === 'function') {
+        if (typeof onConfirm === 'function') {
             onConfirm();
         }
     });
@@ -2735,10 +2734,33 @@ qrCodeContainer.innerHTML = `
         cursor: pointer;
     ">×</div>
 `;
+
+const qrOverlay = document.createElement('div');
+qrOverlay.id = 'qrOverlay';
+qrOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* 半透明黑色背景 */
+    z-index: 9998; /* 确保在二维码弹窗下方 */
+    display: none; /* 初始隐藏 */
+`;
+
+workManagementContainer.appendChild(qrOverlay);
 workManagementContainer.appendChild(qrCodeContainer);
 const qrCodeImage = workManagementContainer.querySelector('#qr-code-img');
 const qrCloseBtn = workManagementContainer.querySelector('#qr-close-btn');
 
+//遮罩
+function showQROverlay() {
+    qrOverlay.style.display = 'block';
+}
+
+function hideQROverlay() {
+    qrOverlay.style.display = 'none';
+}
 
 //判断本地是否有token
 async function handleWorkManagement() {
@@ -2769,7 +2791,7 @@ let pollingTimeout = null;
 
 async function startLoginStatusPolling(ticket) {
     const POLL_INTERVAL = 2000; // 每2秒轮询一次
-    const POLL_TIMEOUT = 2 * 60 * 1000; // 2分钟超时
+    const POLL_TIMEOUT = 2*60*1000; // 2分钟超时
 
     try {
         // 开始轮询
@@ -2797,6 +2819,7 @@ async function startLoginStatusPolling(ticket) {
 
                     // 隐藏二维码
                     qrCodeContainer.style.display = 'none';
+                    hideQROverlay();
 
                     // 请求作品数据
                     loadWorks();
@@ -2811,8 +2834,8 @@ async function startLoginStatusPolling(ticket) {
         pollingTimeout = setTimeout(() => {
             console.warn('轮询超时，停止轮询');
             stopPolling();
-            fetchTicketAndShowQRCode();
-            confirmDialog('登录超时，请重新扫码', null, true);
+            
+            confirmDialog('登录超时，请重新扫码', () => {fetchTicketAndShowQRCode();}, true);
         }, POLL_TIMEOUT);
 
     } catch (error) {
@@ -2820,9 +2843,22 @@ async function startLoginStatusPolling(ticket) {
     }
 }
 
+// 停止轮询
+function stopPolling() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+    if (pollingTimeout) {
+        clearTimeout(pollingTimeout);
+        pollingTimeout = null;
+    }
+}
+
 //显示二维码并更新token
 async function fetchTicketAndShowQRCode() {
     try {
+        showQROverlay();
         // 1. 调用接口获取 ticket
         const sceneStr = 'test001'; // TODO:自定义参数
         const response = await fetch(
@@ -2841,6 +2877,7 @@ async function fetchTicketAndShowQRCode() {
             // 4. 显示二维码
             qrCodeImage.src = qrCodeUrl;
             qrCodeContainer.style.display = 'flex';
+            showQROverlay();
 
             //开始轮询检查扫码状态
             startLoginStatusPolling(ticket);
@@ -2854,7 +2891,9 @@ async function fetchTicketAndShowQRCode() {
 
 // 关闭二维码
 qrCloseBtn.addEventListener('click', () => {
+    stopPolling();
     qrCodeContainer.style.display = 'none';
+    hideQROverlay();
 });
 
 // 检查workflow文件是否存在
@@ -3321,6 +3360,7 @@ workManagementTab.addEventListener('click', async () => {
 
 // 完成封装tab切换逻辑
 completeWrapTab.addEventListener('click', () => {
+    stopPolling();
     if (!isExecutedComplete) {
         // 弹出确认对话框
         confirmDialog('请先完成作品生成测试', null, true);
@@ -3345,6 +3385,7 @@ completeWrapTab.addEventListener('click', () => {
 
 //作品参数tab切换逻辑
 appParamsTab.addEventListener('click', () => {
+    stopPolling();
     // 移除其他tab的active状态，给当前tab添加active状态
     appParamsTab.classList.add('active');
     completeWrapTab.classList.remove('active');
@@ -3378,6 +3419,7 @@ function switchToAppParamsTab() {
 // 取消按钮逻辑
 document.getElementById('cancel-button').addEventListener('click', () => {
     confirmDialog('确定要退出吗？所有未保存的更改将会丢失，如在修改作品，请重新点击修改。', () => {
+        stopPolling();
         resetPageState();      
         pluginUI.classList.remove('show');
         setTimeout(() => {
