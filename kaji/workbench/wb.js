@@ -2765,9 +2765,11 @@ async function handleWorkManagement() {
 
 // 轮询检查扫码登录状态
 let pollingInterval = null;
+let pollingTimeout = null;
 
 async function startLoginStatusPolling(ticket) {
     const POLL_INTERVAL = 2000; // 每2秒轮询一次
+    const POLL_TIMEOUT = 2 * 60 * 1000; // 2分钟超时
 
     try {
         // 开始轮询
@@ -2800,9 +2802,19 @@ async function startLoginStatusPolling(ticket) {
                     loadWorks();
                 }
             } catch (error) {
+                confirmDialog('登录状态出错，请刷新页面重试', null, true);
                 console.error('轮询登录状态出错:', error);
             }
         }, POLL_INTERVAL);
+
+        // 超时重新扫码
+        pollingTimeout = setTimeout(() => {
+            console.warn('轮询超时，停止轮询');
+            stopPolling();
+            fetchTicketAndShowQRCode();
+            confirmDialog('登录超时，请重新扫码', null, true);
+        }, POLL_TIMEOUT);
+
     } catch (error) {
         console.error('开始轮询失败:', error);
     }
