@@ -2814,7 +2814,7 @@ async function startLoginStatusPolling(ticket) {
                     localStorage.setItem('userToken', result.data);
 
                     // 停止轮询
-                    clearInterval(pollingInterval);
+                    stopPolling();
                     pollingInterval = null;
 
                     // 隐藏二维码
