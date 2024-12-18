@@ -3199,7 +3199,7 @@ async function loadWorks() {
         fetchTicketAndShowQRCode(); // 显示二维码重新登录
         return;
     }
-
+    showLoading()
     const res = await request(END_POINT_URL_FOR_PRODUCT_1, {token:token});
     console.log('收到的作品数据: ', res);
     const works = res?.data || [];
@@ -3230,6 +3230,7 @@ async function loadWorks() {
     if (!workManagementContainer.contains(workManagementContent)) {
         workManagementContainer.appendChild(workManagementContent);
     }
+    hideLoading();
 }
 
 // #endregion 创建作品管理视图容器
