@@ -2743,22 +2743,72 @@ const qrCloseBtn = workManagementContainer.querySelector('#qr-close-btn');
 //判断本地是否有token
 async function handleWorkManagement() {
     const token = localStorage.getItem('userToken');
-    
+    console.log("本地缓存的token:",token);
     // 如果没有 token，显示二维码
     if (!token) {
         fetchTicketAndShowQRCode();
         return;
     }
     // TODO：验证token
-    const isValid = false;
+    const isValid = true;
     if (!isValid) {
         // token 过期，重新显示二维码
         fetchTicketAndShowQRCode();
+        return;
+    }
+
+    //否则直接loadworks
+    qrCodeContainer.style.display = 'none';
+    loadWorks();
+
+}
+
+// 轮询检查扫码登录状态
+let pollingInterval = null;
+
+async function startLoginStatusPolling(ticket) {
+    const POLL_INTERVAL = 2000; // 每2秒轮询一次
+
+    try {
+        // 开始轮询
+        pollingInterval = setInterval(async () => {
+            try {
+                // 发送请求检查登录状态
+                const response = await fetch(
+                    `https://env-00jxh693vso2.dev-hz.cloudbasefunction.cn/plugin/getLoginStatus?ticket=${ticket}`,
+                    { method: 'GET' }
+                );
+
+                const result = await response.json();
+                console.log('轮询结果:', result);
+
+                // 判断登录状态
+                if (result.success && result.data) {
+                    console.log('登录成功，token:', result.data);
+
+                    // 保存token到本地
+                    localStorage.setItem('userToken', result.data);
+
+                    // 停止轮询
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+
+                    // 隐藏二维码
+                    qrCodeContainer.style.display = 'none';
+
+                    // 请求作品数据
+                    loadWorks();
+                }
+            } catch (error) {
+                console.error('轮询登录状态出错:', error);
+            }
+        }, POLL_INTERVAL);
+    } catch (error) {
+        console.error('开始轮询失败:', error);
     }
 }
 
 //显示二维码并更新token
-//TODO:更新token
 async function fetchTicketAndShowQRCode() {
     try {
         // 1. 调用接口获取 ticket
@@ -2779,6 +2829,9 @@ async function fetchTicketAndShowQRCode() {
             // 4. 显示二维码
             qrCodeImage.src = qrCodeUrl;
             qrCodeContainer.style.display = 'flex';
+
+            //开始轮询检查扫码状态
+            startLoginStatusPolling(ticket);
         } else {
             console.error('获取二维码 ticket 失败:', result.msg || '未知错误');
         }
@@ -2791,9 +2844,6 @@ async function fetchTicketAndShowQRCode() {
 qrCloseBtn.addEventListener('click', () => {
     qrCodeContainer.style.display = 'none';
 });
-
-//TODO：轮询检查扫码登录状态，登录成功后请求作品数据
-
 
 // 检查workflow文件是否存在
 async function checkWorkflowFile(work) {
