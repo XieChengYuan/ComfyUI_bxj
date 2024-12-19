@@ -526,35 +526,44 @@ const END_POINT_GET_WORKFLOW = "/plugin/getWorkflow";                    //获�
 const END_POINT_DELETE_WORKFLOW_FILE = "/plugin/deleteWorkflowFile";     // 删除指定工作流文件接口        
 
 // 动态处理 HTTP 和 WebSocket 请求
-async function request(endpoint, data = {}, method = 'POST', token = '') {
+async function request(endpoint, data = {}, method = 'POST') {
     // WebSocket 请求特殊处理
     if (endpoint === '/ws') {
         return connectWebSocket(endpoint, data);
     }
 
-    // 处理普通 HTTP 请求
+        // 从本地缓存中获取 token
+    let token = localStorage.getItem('userToken');
+    if (!token) {
+        console.warn('Token 不存在，弹出二维码登录');
+        await fetchTicketAndShowQRCode();
+        return;
+    }
+
+    // 处理普通 HTTP 请求，GET暂时没有token
     let url = `${baseUrl}${endpoint}`;
     if (method === 'GET' || method === 'HEAD') {
-        if (token) {
-            data.token = token;
-        }
         const queryParams = new URLSearchParams(data).toString();
         if (queryParams) {
             url += `?${queryParams}`;
         }
     }
 
+    //预留如果token校验在header中
     const options = {
         method,
         headers: {
             'Content-Type': 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),
         },
-        ...(method !== 'GET' && method !== 'HEAD' && { body: JSON.stringify(data) }),
+        ...(method !== 'GET' && method !== 'HEAD' && { body: JSON.stringify({ ...data, token }) }),
     };
     console.log("请求url和options: ", url, options);
+
     try {
         const response = await fetch(url, options);
+
+        // TODO：如果 token 过期或无效，弹出二维码登录
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }

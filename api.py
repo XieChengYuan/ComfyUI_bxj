@@ -603,33 +603,37 @@ async def get_wss_server_url():
                     status=response.status, text="Invalid JSON response2"
                 )
 
-
-user_id = "66c1f5419d9f915ad22bf864"
-token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2NmMxZjU0MTlkOWY5MTVhZDIyYmY4NjQiLCJyb2xlIjpbImFkbWluIl0sInBlcm1pc3Npb24iOltdLCJ1bmlJZFZlcnNpb24iOiIxLjAuMTciLCJpYXQiOjE3MzE5NDEzMzMsImV4cCI6MTczMTk0ODUzM30.q4KwshczA2jPcaiHkaqNSLjiAzrwCPxacBhD0ozFql0"
-
-
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
 async def getProducts(req):
-    jsonData = {}
-    async with aiohttp.ClientSession() as session:
-        jsonData["token"] = token
-        jsonData["user_id"] = user_id
-        async with session.post(
-            BASE_URL + END_POINT_URL_FOR_PRODUCT_1, json=jsonData
-        ) as response:
-            res_js = await response.json()
-            data = res_js.get("data", {})
-            print("res_js", res_js)
+    try:
+        body = await req.json()
+        token = body.get("token")
 
-            return web.json_response(res_js)
+        if not token:
+            return web.json_response({"error": "Token is required"}, status=400)
+
+        jsonData = {
+            "token": token,
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                BASE_URL + END_POINT_URL_FOR_PRODUCT_1, json=jsonData
+            ) as response:
+                res_js = await response.json()
+
+                return web.json_response(res_js)
+
+    except Exception as e:
+        print("Error parsing request body:", e)
+        return web.json_response({"error": "Invalid request body"}, status=400)
 
 
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_3)
 async def deleteProduct(req):
     jsonData = await req.json()
+
     async with aiohttp.ClientSession() as session:
-        jsonData["token"] = token
-        jsonData["user_id"] = user_id
         # jsonData["product_id"] = "xxxx"  # 写死
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_3, json=jsonData
@@ -645,8 +649,6 @@ async def deleteProduct(req):
 async def toggleAuthor(req):
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
-        jsonData["token"] = token
-        jsonData["user_id"] = user_id
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_4, json=jsonData
         ) as response:
@@ -661,8 +663,6 @@ async def toggleAuthor(req):
 async def toggleDistribution(req):
     jsonData = await req.json()
     async with aiohttp.ClientSession() as session:
-        jsonData["token"] = token
-        jsonData["user_id"] = user_id
         async with session.post(
             BASE_URL + END_POINT_URL_FOR_PRODUCT_5, json=jsonData
         ) as response:
@@ -860,9 +860,6 @@ async def kaji_r(req):
 
         # 重新格式化数据
         newData = reformat(jsonData)
-        # 添加 token
-        newData["token"] = token
-        newData["user_id"] = user_id
 
         # logging.info(f"作品上传接口入参: {newData}")
 
