@@ -532,13 +532,8 @@ async function request(endpoint, data = {}, method = 'POST') {
         return connectWebSocket(endpoint, data);
     }
 
-        // 从本地缓存中获取 token
+    // 从本地缓存中获取 token
     let token = localStorage.getItem('userToken');
-    if (!token) {
-        console.warn('Token 不存在，弹出二维码登录');
-        await fetchTicketAndShowQRCode();
-        return;
-    }
 
     // 处理普通 HTTP 请求，GET暂时没有token
     let url = `${baseUrl}${endpoint}`;
