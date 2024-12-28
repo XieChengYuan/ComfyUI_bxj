@@ -313,8 +313,6 @@ def reformat(uploadData):
 async def send_heartbeat(websocket):
     while True:
         try:
-            print(f"开始发送心跳, 状态为：{websocket.state}")
-
             # 获取所有工作流id
             workflow_path = find_plugin_root() + "config/json/workflow"
             uniqueids = get_filenames(workflow_path)
@@ -326,7 +324,7 @@ async def send_heartbeat(websocket):
                     "uniqueids": uniqueids,
                 },
             }
-            print(f"{workflow_path};发送 ping 数据：{payload}")
+            print(f"发送心跳； ping 数据为：{payload}")
 
             heartbeat_message = json.dumps(payload)
             await websocket.send(heartbeat_message)
@@ -371,7 +369,7 @@ async def receive_messages(websocket, c_flag):
                 logger.info(f"接收支付宝云端ws事件数据: {message}")
                 await process_server_message1(message)
             elif c_flag == 2:
-                logger.info(f"接收comfyUI的生图任务信息: {message}")
+                logger.info(f"接收comfyUI的当前生图任务状态: {message}")
                 await process_server_message2(message)
             else:
                 logger.warning(f"未识别的c_flag: {c_flag}, 丢弃消息: {message}")
@@ -603,6 +601,7 @@ async def get_wss_server_url():
                     status=response.status, text="Invalid JSON response2"
                 )
 
+
 @server.PromptServer.instance.routes.post(END_POINT_URL_FOR_PRODUCT_1)
 async def getProducts(req):
     try:
@@ -759,7 +758,8 @@ async def deleteFile(req):
             )
     else:
         return web.json_response({"success": False, "errMsg": "文件不存在"})
-    
+
+
 @server.PromptServer.instance.routes.post(END_POINT_DELETE_WORKFLOW)
 async def delete_workflow(req):
     # 获取请求数据
@@ -774,7 +774,9 @@ async def delete_workflow(req):
         # 调用 get_workflow 获取工作流数据
         workflow_data = get_workflow(uniqueid)
         if not workflow_data:
-            return web.json_response({"success": False, "errMsg": "未找到对应的工作流数据"})
+            return web.json_response(
+                {"success": False, "errMsg": "未找到对应的工作流数据"}
+            )
 
         # 构建工作流文件的绝对路径
         base_dir = os.path.abspath(
@@ -795,7 +797,9 @@ async def delete_workflow(req):
             return web.json_response({"success": False, "errMsg": "文件不存在"})
 
     except Exception as e:
-        return web.json_response({"success": False, "errMsg": f"删除工作流时出错：{str(e)}"})
+        return web.json_response(
+            {"success": False, "errMsg": f"删除工作流时出错：{str(e)}"}
+        )
 
 
 # 获取上传凭证，由前端直传扩展存储
@@ -819,8 +823,8 @@ async def get_upload_token(req):
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 BASE_URL
-            + UPLOAD_OSS_URL
-            + f"?bizCode={biz_code}&cloudFileName={cloud_file_name}"
+                + UPLOAD_OSS_URL
+                + f"?bizCode={biz_code}&cloudFileName={cloud_file_name}"
             ) as response:
                 if response.status == 200:
                     upload_options = await response.json()
@@ -1015,7 +1019,6 @@ async def upload_output_image(filename):
             else:
                 print(f"获取上传配置信息失败，状态码: {response.status}")
                 return None
-
 
 
 def validate_prompt(prompt):
