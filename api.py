@@ -62,7 +62,8 @@ gc_task_queue = asyncio.Queue()  # 改为异步队列
 taskIdDict = dict()
 listeningTasks = set()  # 用于进度数据的发送控制（量比较大，所以判断一下，减少请求）
 numberDict = dict()
-runningNumber = -1  # -1代表没有任务，机器空闲状态
+runningNumber = -1  # 跑的最后一个任务编号。
+queue_size = 0  # 0代表没有任务，机器空闲状态
 
 
 def parse_args():
@@ -1053,7 +1054,10 @@ async def run_gc_task_async(task_data):
             # 每次通过接口调用来获取排队信息，有点太慢了，这里要快。直接返回牌号，当场算就可以
             number = result["number"]
             numberDict[prompt_id] = number
-            cur_q = number - runningNumber
+            if runningNumber == -1:
+                cur_q = 0
+            else:
+                cur_q = number - runningNumber
             logging.info(f"立即获取当前任务的排队状态： {cur_q}")
 
             # 服务器也维护关系
