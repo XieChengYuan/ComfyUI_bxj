@@ -3420,6 +3420,25 @@ function switchToAppParamsTab() {
     updateFooterButtons();
 }
 
+// 封装 tab 切换逻辑为函数
+async function switchToWorkManagementLogin() {
+    // 移除其他tab的active状态，给当前tab添加active状态
+    appParamsTab.classList.remove('active');
+    completeWrapTab.classList.remove('active');
+    workManagementTab.classList.add('active');
+
+    // 切换视图的显示和隐藏
+    panelsContainer.style.display = 'none';
+    completeWrapContainer.style.display = 'none';
+    workManagementContainer.style.display = 'flex';
+
+    // 更新底部按钮显示
+    updateFooterButtons();
+
+    // 判断和处理 token
+    await handleWorkManagement();
+}
+
 // 取消按钮逻辑
 document.getElementById('cancel-button').addEventListener('click', () => {
     confirmDialog('确定要退出吗？所有未保存的更改将会丢失，如在修改作品，请重新点击修改。', () => {
@@ -3451,6 +3470,13 @@ document.getElementById('prev-button').addEventListener('click', () => {
 
 // 发布/更新作品
 document.getElementById('publish-button').addEventListener('click', async () => {
+    const token = localStorage.getItem('userToken');
+    // 如果没有 token登录，跳转到作品管理页去登录
+    if (!token) {
+        await switchToWorkManagementLogin();
+        return;
+    }
+
     if (isModifyProduct()) {
         // 弹出选择发布方式的对话框
         publishOptionDialog('请选择发布方式：', async () => {

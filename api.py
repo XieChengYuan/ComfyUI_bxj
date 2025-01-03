@@ -859,10 +859,6 @@ async def kaji_r(req):
             logging.error("请求中缺少 workflow 或 output 字段")
             return web.Response(status=400, text="workflow or output is missing")
 
-        # 本地保存工作流数据
-        logging.info(f"正在保存工作流数据: uniqueid={uniqueid}")
-        save_workflow(uniqueid, {"workflow": workflow, "output": output})
-
         # 重新格式化数据
         newData = reformat(jsonData)
 
@@ -898,6 +894,9 @@ async def kaji_r(req):
 
                     # 成功处理
                     logging.info("作品上传成功")
+                    # 作品上传成功再本地保存工作流数据
+                    logging.info(f"正在保存工作流数据: uniqueid={uniqueid}")
+                    save_workflow(uniqueid, {"workflow": workflow, "output": output})
                     return web.json_response(res_js)
                 except json.JSONDecodeError:
                     logging.error("无法解析 JSON 响应")
