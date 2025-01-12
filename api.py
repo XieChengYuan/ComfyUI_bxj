@@ -1266,7 +1266,7 @@ def thread_run():
     threading.Thread(target=run_asyncio_in_thread, daemon=True).start()
 
 
-# 线程内使用asyncio管理所有异步任务；队列也改为异步队列
+# 线程内使用asyncio管理所有异步任务；队列也改为异步队列 test
 def run_asyncio_in_thread():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)  # 手动绑定事件循环
