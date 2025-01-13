@@ -21,6 +21,7 @@ import math
 import platform
 import subprocess
 from datetime import datetime
+import folder_paths
 
 # 在文件开头设置日志配置
 logging.basicConfig(
@@ -48,8 +49,17 @@ END_POINT_DELETE_FILE = "/plugin/deleteFiles"
 END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"
 END_POINT_DELETE_WORKFLOW = "/plugin/deleteWorkflowFile"
 
-media_save_dir = ".../../input"
-media_output_dir = ".../../output"
+# media_save_dir = ".../../input"
+# media_output_dir = ".../../output"
+
+media_save_dir = folder_paths.get_input_directory()
+media_output_dir = folder_paths.get_output_directory()
+
+print(f"输入目录：{media_save_dir}")
+
+print(f"输出目录：{media_output_dir}")
+
+
 wss_c1 = None
 wss_c2 = None
 last_value = None
