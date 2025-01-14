@@ -1471,10 +1471,10 @@ panelsContainer.className = 'panels-container';
 // #region 创建作品参数面板
 //---------------------------------------数据处理-----------------------------------------------
 //获取当前工作流output信息
-const graphPrompt = await app.graphToPrompt();
-const output = graphPrompt.output;
+let graphPrompt = await app.graphToPrompt();
+let output = graphPrompt.output;
 console.log("graphToPrompt output:", output)
-const workflow = graphPrompt.workflow;
+let workflow = graphPrompt.workflow;
 //格式化，当过滤数据用，这些项在可选节点中显示
 function restructureData(inputData) {
     const result = new Map();
@@ -3683,13 +3683,19 @@ let offsetX, offsetY;
 let hasMoved = false;
 let startX, startY;
 
-workbenchButton.addEventListener('mousedown', (e) => {
+workbenchButton.addEventListener('mousedown', async(e) => {
     isDragging = true;
     hasMoved = false; // 重置移动标志
     startX = e.clientX; // 记录初始鼠标位置
     startY = e.clientY;
     offsetX = e.clientX - workbenchButton.getBoundingClientRect().left;
     offsetY = e.clientY - workbenchButton.getBoundingClientRect().top;
+
+    //打开工作台重置graph数据
+    graphPrompt = await app.graphToPrompt();
+    output = graphPrompt.output;
+    console.log("update graphToPrompt output:", output)
+    workflow = graphPrompt.workflow;
 });
 
 document.addEventListener('mousemove', (e) => {
