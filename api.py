@@ -49,14 +49,10 @@ END_POINT_DELETE_FILE = "/plugin/deleteFiles"
 END_POINT_GET_WORKFLOW = "/plugin/getWorkflow"
 END_POINT_DELETE_WORKFLOW = "/plugin/deleteWorkflowFile"
 
-# media_save_dir = ".../../input"
-# media_output_dir = ".../../output"
-
 media_save_dir = folder_paths.get_input_directory()
 media_output_dir = folder_paths.get_output_directory()
 
 print(f"输入目录：{media_save_dir}")
-
 print(f"输出目录：{media_output_dir}")
 
 
@@ -380,7 +376,7 @@ async def receive_messages(websocket, c_flag):
                 logger.info(f"接收支付宝云端ws事件数据: {message}")
                 await process_server_message1(message)
             elif c_flag == 2:
-                logger.info(f"接收comfyUI的当前生图任务状态: {message}")
+                # logger.info(f"接收comfyUI的当前生图任务状态: {message}")
                 await process_server_message2(message)
             else:
                 logger.warning(f"未识别的c_flag: {c_flag}, 丢弃消息: {message}")
@@ -484,6 +480,7 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(startEvent))
+        print(f"新任务开始，成功发给服务端: {startEvent}")
     elif message_type == "execution_cached":
         # 该任务被缓存好的所有节点数组（服务端暂时不用，不用通知）
         pass
@@ -503,7 +500,7 @@ async def process_server_message2(message):
                 "data": {"uni_hash": uni_hash, "queue_size": queue_size},
             }
             await wss_c1.send(json.dumps(queueChangeEvent))  # 发送进度消息
-            print(f"上个任务完成了，队列有变动: {queueChangeEvent}")
+            print(f"上个任务完成了，总队列大小发给服务端: {queueChangeEvent}")
     elif message_type == "progress":
         # 某个节点的具体的执行进度，与executing事件对应
         # （整个工作流往往最耗时的节点是ksample那个节点，此处的步长数据就当作工作流的进度）
@@ -550,7 +547,7 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(progressEvent))  # 发送进度消息
-        print(f"发送进度更新: {progressEvent}")
+        # print(f"发送进度更新: {progressEvent}")
 
     elif message_type == "executed":
         # TODO 不是这样拿结果图...
@@ -560,6 +557,7 @@ async def process_server_message2(message):
         filename = message_json["data"]["output"]["images"][0]["filename"]
         # "filename": "ComfyUI_00031_.png",
         media_link = await upload_output_image(filename)
+        # 数组问题。还有临时文件（预览）要过滤不要 todo todo
 
         executedEvent = {
             "type": "executed_success",
@@ -571,10 +569,21 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(executedEvent))
+        print(f"结果成功发给服务端: {executedEvent}")
 
         listeningTasks.discard(kaji_generate_record_id)
     elif message_type == "execution_success":
-        # 所有节点完成，该任务也完成。
+        # 所有节点完成，该任务也完成。 todo
+        executionEvent = {
+            "type": "task_success",
+            "data": {
+                "kaji_generate_record_id": kaji_generate_record_id,
+                "prompt_id": prompt_id,
+            },
+        }
+        await wss_c1.send(json.dumps(executionEvent))
+        print(f"任务完成成功发给服务端: {executionEvent}")
+
         pass
     elif message_type == "execution_error" or message_type == "execution_interrupted":
         print(f"执行错误: {message_json}")
@@ -590,6 +599,7 @@ async def process_server_message2(message):
             },
         }
         await wss_c1.send(json.dumps(errorEvent))
+        print(f"结果（错误）成功发给服务端: {errorEvent}")
 
         listeningTasks.discard(kaji_generate_record_id)
 
